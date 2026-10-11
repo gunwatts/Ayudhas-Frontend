@@ -187,9 +187,11 @@ function UserMenu() {
           <KeyRound /> Change password
         </DropdownMenuItem>
         <DropdownMenuItem
-          onSelect={async () => {
-            await logout();
-            router.replace("/login/");
+          onSelect={() => {
+            // Local sign-out happens even if the server call fails, so always go to the login page.
+            logout()
+              .catch(() => {})
+              .finally(() => router.replace("/login/"));
           }}
         >
           <LogOut /> Sign out

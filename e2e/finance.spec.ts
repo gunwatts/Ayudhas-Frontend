@@ -177,6 +177,16 @@ test("unauthenticated visitors are sent to sign-in, and bad credentials are reje
   await expect(page.locator("form").getByRole("alert")).toHaveText("Incorrect username or password");
 });
 
+test("signing out returns to sign-in and ends the session", async ({ page }) => {
+  await login(page);
+  await page.getByRole("button", { name: "Account menu" }).click();
+  await page.getByRole("menuitem", { name: "Sign out" }).click();
+  await expect(page).toHaveURL(/\/login\/$/);
+  await expect(page.getByRole("button", { name: "Sign in" })).toBeVisible();
+  await page.goto("/reports/");
+  await expect(page).toHaveURL(/\/login\/\?next=%2Freports%2F/);
+});
+
 test("form validation is inline and nothing is saved @responsive", async ({ page }) => {
   await login(page);
   await page.getByRole("button", { name: /Add transaction/ }).click();

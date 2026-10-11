@@ -59,9 +59,11 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     try {
       await api.post("/auth/logout");
     } finally {
+      // Keep the session query itself (clearing it would detach the mounted observer, leaving the UI
+      // "authenticated"); mark it signed out and drop every cached financial query.
       setCsrfToken("");
-      qc.clear();
       qc.setQueryData(["session"], null);
+      qc.removeQueries({ predicate: (q) => q.queryKey[0] !== "session" });
     }
   }, [qc]);
 
