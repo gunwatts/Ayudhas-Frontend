@@ -1,0 +1,55 @@
+# Frontend repository workflow (active only when this folder is the repository root).
+# Builds the static export and publishes it to GitHub Pages.
+# Required: Settings → Pages → Source = "GitHub Actions";
+#           Settings → Secrets and variables → Actions → Variables → API_BASE_URL (public backend URL).
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      - name: Require the API URL variable
+        run: test -n "${{ vars.API_BASE_URL }}" || (echo "Set the API_BASE_URL repository variable" && exit 1)
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+        env:
+          NEXT_PUBLIC_API_BASE_URL: ${{ vars.API_BASE_URL }}
+          NEXT_TELEMETRY_DISABLED: "1"
+      - name: Refuse to publish a bundle that still points at localhost
+        run: "! grep -rl 'localhost:8000' out/_next"
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: out
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
