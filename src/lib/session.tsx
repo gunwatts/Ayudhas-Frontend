@@ -9,8 +9,12 @@ type SessionData = Schemas["SessionOut"];
 type SessionState = {
   status: "loading" | "authenticated" | "anonymous" | "error";
   user: SessionData["user"] | null;
+  /** Full session (has_password, google_connected, …) when signed in. */
+  session: SessionData | null;
   error: Error | null;
   login: (username: string, password: string) => Promise<void>;
+  /** Adopt a session returned by sign-up, Google sign-in or account changes. */
+  adopt: (data: SessionData) => void;
   logout: () => Promise<void>;
   refresh: () => Promise<unknown>;
 };
@@ -45,14 +49,20 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     [qc],
   );
 
-  const login = useCallback(
-    async (username: string, password: string) => {
-      const data = await api.post<SessionData>("/auth/login", { username, password });
+  const adopt = useCallback(
+    (data: SessionData) => {
       setCsrfToken(data.csrf_token);
-      qc.removeQueries({ predicate: (q) => q.queryKey[0] !== "session" });
+      qc.removeQueries({ predicate: (q) => q.queryKey[0] !== "session" && q.queryKey[0] !== "auth-config" });
       qc.setQueryData(["session"], data);
     },
     [qc],
+  );
+
+  const login = useCallback(
+    async (username: string, password: string) => {
+      adopt(await api.post<SessionData>("/auth/login", { username, password }));
+    },
+    [adopt],
   );
 
   const logout = useCallback(async () => {
@@ -78,12 +88,14 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     return {
       status,
       user: query.data?.user ?? null,
+      session: query.data ?? null,
       error: query.error,
       login,
+      adopt,
       logout,
       refresh: query.refetch,
     };
-  }, [query.isPending, query.isError, query.data, query.error, query.refetch, login, logout]);
+  }, [query.isPending, query.isError, query.data, query.error, query.refetch, login, adopt, logout]);
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }

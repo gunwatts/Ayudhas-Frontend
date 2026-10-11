@@ -17,7 +17,7 @@ async function login(page: Page, who = USER) {
   await page.goto("/login/");
   await page.getByLabel(lbl("Username")).fill(who.username);
   await page.getByLabel(lbl("Password")).fill(who.password);
-  await page.getByRole("button", { name: "Sign in" }).click();
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Overview" })).toBeVisible();
 }
 
@@ -173,7 +173,7 @@ test("unauthenticated visitors are sent to sign-in, and bad credentials are reje
   await expect(page).toHaveURL(/\/login\/\?next=%2Freports%2F/);
   await page.getByLabel(lbl("Username")).fill("demo");
   await page.getByLabel(lbl("Password")).fill("wrong-password");
-  await page.getByRole("button", { name: "Sign in" }).click();
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(page.locator("form").getByRole("alert")).toHaveText("Incorrect username or password");
 });
 
@@ -182,9 +182,46 @@ test("signing out returns to sign-in and ends the session", async ({ page }) => 
   await page.getByRole("button", { name: "Account menu" }).click();
   await page.getByRole("menuitem", { name: "Sign out" }).click();
   await expect(page).toHaveURL(/\/login\/$/);
-  await expect(page.getByRole("button", { name: "Sign in" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Sign in", exact: true })).toBeVisible();
   await page.goto("/reports/");
   await expect(page).toHaveURL(/\/login\/\?next=%2Freports%2F/);
+});
+
+// The e2e backend runs with ALLOW_REGISTRATION=true, REGISTRATION_INVITE_CODE=e2e-invite and a GOOGLE_CLIENT_ID.
+test("new users sign up with an invite code and land on their own empty dashboard", async ({ page }) => {
+  await page.goto("/login/");
+  await page.getByRole("link", { name: "Create an account" }).click();
+  await expect(page).toHaveURL(/\/signup\/$/);
+  await page.getByLabel(lbl("Username")).fill(`new${Date.now()}`);
+  await page.getByLabel(lbl("Password")).fill("Fresh-Password-2026");
+  await page.getByLabel(lbl("Confirm password")).fill("Fresh-Password-2026");
+  await page.getByRole("button", { name: "Create account" }).click();
+  await expect(page.getByText("Enter your invite code", { exact: true })).toBeVisible();
+  await page.getByLabel(lbl("Invite code")).fill("wrong-code");
+  await page.getByRole("button", { name: "Create account" }).click();
+  await expect(page.getByText("That invite code isn't right")).toBeVisible();
+  await page.getByLabel(lbl("Invite code")).fill("e2e-invite");
+  await page.getByRole("button", { name: "Create account" }).click();
+  await expect(page.getByRole("heading", { name: "Overview" })).toBeVisible();
+  await expect(page.getByTestId("available")).toHaveText(inr(0)); // sees none of the demo user's money
+});
+
+const FAKE_GOOGLE_SCRIPT = `window.google = { accounts: { id: {
+  initialize: (o) => { window.__gisCallback = o.callback; },
+  renderButton: (el) => { const b = document.createElement("button"); b.type = "button"; b.textContent = "Fake Google";
+    b.onclick = () => window.__gisCallback({ credential: "fake-id-token" }); el.appendChild(b); },
+} } };`;
+
+test("the Google button sends Google's credential to the server, which rejects a forged one", async ({ page }) => {
+  await page.route("https://accounts.google.com/gsi/client", (route) =>
+    route.fulfill({ contentType: "text/javascript", body: FAKE_GOOGLE_SCRIPT }),
+  );
+  await page.goto("/login/");
+  const sent = page.waitForRequest((r) => r.url().endsWith("/api/v1/auth/google") && r.method() === "POST");
+  await page.getByRole("button", { name: "Fake Google" }).click();
+  expect((await sent).postDataJSON()).toEqual({ credential: "fake-id-token" });
+  await expect(page.locator("form").getByRole("alert")).toHaveText(/Google sign-in failed|Couldn't reach Google/);
+  await expect(page).toHaveURL(/\/login\//);
 });
 
 test("form validation is inline and nothing is saved @responsive", async ({ page }) => {

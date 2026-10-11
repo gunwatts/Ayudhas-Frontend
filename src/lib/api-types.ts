@@ -24,6 +24,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Auth Config
+         * @description Public: tells the sign-in page which options to show.
+         */
+        get: operations["auth_config_api_v1_auth_config_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/login": {
         parameters: {
             query?: never;
@@ -92,6 +112,47 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/google": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Google Sign In
+         * @description Sign in with a Google ID token; creates an account on first use when sign-ups are open.
+         */
+        post: operations["google_sign_in_api_v1_auth_google_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/google/connect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Google Connect
+         * @description Let a signed-in user also sign in with their Google account.
+         */
+        post: operations["google_connect_api_v1_auth_google_connect_post"];
+        /** Google Disconnect */
+        delete: operations["google_disconnect_api_v1_auth_google_connect_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/password": {
         parameters: {
             query?: never;
@@ -101,7 +162,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Change Password */
+        /**
+         * Change Password
+         * @description Change the password, or set a first one for an account created with Google sign-in.
+         */
         post: operations["change_password_api_v1_auth_password_post"];
         delete?: never;
         options?: never;
@@ -1000,6 +1064,15 @@ export interface components {
             /** Note */
             note: string;
         };
+        /** AuthConfigOut */
+        AuthConfigOut: {
+            /** Registration Open */
+            registration_open: boolean;
+            /** Invite Required */
+            invite_required: boolean;
+            /** Google Client Id */
+            google_client_id: string | null;
+        };
         /** BudgetIn */
         BudgetIn: {
             /** Name */
@@ -1478,6 +1551,21 @@ export interface components {
             /** Notes */
             notes?: string | null;
         };
+        /** GoogleConnectIn */
+        GoogleConnectIn: {
+            /** Credential */
+            credential: string;
+        };
+        /** GoogleSignInIn */
+        GoogleSignInIn: {
+            /** Credential */
+            credential: string;
+            /**
+             * Invite Code
+             * @default
+             */
+            invite_code: string;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -1911,7 +1999,10 @@ export interface components {
         };
         /** PasswordChangeIn */
         PasswordChangeIn: {
-            /** Current Password */
+            /**
+             * Current Password
+             * @default
+             */
             current_password: string;
             /** New Password */
             new_password: string;
@@ -2078,6 +2169,11 @@ export interface components {
             password: string;
             /** Email */
             email?: string | null;
+            /**
+             * Invite Code
+             * @default
+             */
+            invite_code: string;
         };
         /** RepaymentIn */
         RepaymentIn: {
@@ -2111,6 +2207,10 @@ export interface components {
             currency: string;
             /** Time Zone */
             time_zone: string;
+            /** Has Password */
+            has_password: boolean;
+            /** Google Connected */
+            google_connected: boolean;
         };
         /** SplitOut */
         SplitOut: {
@@ -2352,6 +2452,26 @@ export interface operations {
             };
         };
     };
+    auth_config_api_v1_auth_config_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthConfigOut"];
+                };
+            };
+        };
+    };
     login_api_v1_auth_login_post: {
         parameters: {
             query?: never;
@@ -2452,6 +2572,92 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    google_sign_in_api_v1_auth_google_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GoogleSignInIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    google_connect_api_v1_auth_google_connect_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GoogleConnectIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    google_disconnect_api_v1_auth_google_connect_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionOut"];
                 };
             };
         };

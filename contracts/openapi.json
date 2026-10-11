@@ -25,6 +25,28 @@
     }
    }
   },
+  "/api/v1/auth/config": {
+   "get": {
+    "tags": [
+     "auth"
+    ],
+    "summary": "Auth Config",
+    "description": "Public: tells the sign-in page which options to show.",
+    "operationId": "auth_config_api_v1_auth_config_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/AuthConfigOut"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/api/v1/auth/login": {
    "post": {
     "tags": [
@@ -142,12 +164,116 @@
     }
    }
   },
+  "/api/v1/auth/google": {
+   "post": {
+    "tags": [
+     "auth"
+    ],
+    "summary": "Google Sign In",
+    "description": "Sign in with a Google ID token; creates an account on first use when sign-ups are open.",
+    "operationId": "google_sign_in_api_v1_auth_google_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/GoogleSignInIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/SessionOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/auth/google/connect": {
+   "post": {
+    "tags": [
+     "auth"
+    ],
+    "summary": "Google Connect",
+    "description": "Let a signed-in user also sign in with their Google account.",
+    "operationId": "google_connect_api_v1_auth_google_connect_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/GoogleConnectIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/SessionOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "delete": {
+    "tags": [
+     "auth"
+    ],
+    "summary": "Google Disconnect",
+    "operationId": "google_disconnect_api_v1_auth_google_connect_delete",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/SessionOut"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/api/v1/auth/password": {
    "post": {
     "tags": [
      "auth"
     ],
     "summary": "Change Password",
+    "description": "Change the password, or set a first one for an account created with Google sign-in.",
     "operationId": "change_password_api_v1_auth_password_post",
     "requestBody": {
      "content": {
@@ -4283,6 +4409,36 @@
     ],
     "title": "AllocationOut"
    },
+   "AuthConfigOut": {
+    "properties": {
+     "registration_open": {
+      "type": "boolean",
+      "title": "Registration Open"
+     },
+     "invite_required": {
+      "type": "boolean",
+      "title": "Invite Required"
+     },
+     "google_client_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Google Client Id"
+     }
+    },
+    "type": "object",
+    "required": [
+     "registration_open",
+     "invite_required",
+     "google_client_id"
+    ],
+    "title": "AuthConfigOut"
+   },
    "BudgetIn": {
     "properties": {
      "name": {
@@ -5778,6 +5934,44 @@
     "additionalProperties": false,
     "type": "object",
     "title": "GoalPatch"
+   },
+   "GoogleConnectIn": {
+    "properties": {
+     "credential": {
+      "type": "string",
+      "maxLength": 8192,
+      "minLength": 1,
+      "title": "Credential"
+     }
+    },
+    "additionalProperties": false,
+    "type": "object",
+    "required": [
+     "credential"
+    ],
+    "title": "GoogleConnectIn"
+   },
+   "GoogleSignInIn": {
+    "properties": {
+     "credential": {
+      "type": "string",
+      "maxLength": 8192,
+      "minLength": 1,
+      "title": "Credential"
+     },
+     "invite_code": {
+      "type": "string",
+      "maxLength": 200,
+      "title": "Invite Code",
+      "default": ""
+     }
+    },
+    "additionalProperties": false,
+    "type": "object",
+    "required": [
+     "credential"
+    ],
+    "title": "GoogleSignInIn"
    },
    "HTTPValidationError": {
     "properties": {
@@ -7308,8 +7502,8 @@
      "current_password": {
       "type": "string",
       "maxLength": 256,
-      "minLength": 1,
-      "title": "Current Password"
+      "title": "Current Password",
+      "default": ""
      },
      "new_password": {
       "type": "string",
@@ -7321,7 +7515,6 @@
     "additionalProperties": false,
     "type": "object",
     "required": [
-     "current_password",
      "new_password"
     ],
     "title": "PasswordChangeIn"
@@ -7836,6 +8029,12 @@
        }
       ],
       "title": "Email"
+     },
+     "invite_code": {
+      "type": "string",
+      "maxLength": 200,
+      "title": "Invite Code",
+      "default": ""
      }
     },
     "additionalProperties": false,
@@ -7952,6 +8151,14 @@
      "time_zone": {
       "type": "string",
       "title": "Time Zone"
+     },
+     "has_password": {
+      "type": "boolean",
+      "title": "Has Password"
+     },
+     "google_connected": {
+      "type": "boolean",
+      "title": "Google Connected"
      }
     },
     "type": "object",
@@ -7959,7 +8166,9 @@
      "user",
      "csrf_token",
      "currency",
-     "time_zone"
+     "time_zone",
+     "has_password",
+     "google_connected"
     ],
     "title": "SessionOut"
    },

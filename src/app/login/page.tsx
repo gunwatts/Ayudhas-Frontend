@@ -2,16 +2,18 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Handshake, Loader2 } from "lucide-react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
 import { Field } from "@/components/fields";
+import { GoogleButton, OrDivider, useAuthConfig } from "@/components/google-button";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { ApiError } from "@/lib/api";
+import { api, ApiError, type Schemas } from "@/lib/api";
 import { useSession } from "@/lib/session";
 
 const schema = z.object({
@@ -26,7 +28,8 @@ function safeNext(value: string | null) {
 }
 
 function LoginForm() {
-  const { status, login } = useSession();
+  const { status, login, adopt } = useSession();
+  const config = useAuthConfig().data;
   const router = useRouter();
   const params = useSearchParams();
   const next = safeNext(params.get("next"));
@@ -49,6 +52,16 @@ function LoginForm() {
     }
   });
 
+  const onGoogle = async (credential: string) => {
+    setError(null);
+    try {
+      adopt(await api.post<Schemas["SessionOut"]>("/auth/google", { credential }));
+      router.replace(next);
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : "Google sign-in failed. Please try again.");
+    }
+  };
+
   return (
     <Card className="w-full max-w-sm">
       <CardHeader className="text-center">
@@ -56,7 +69,7 @@ function LoginForm() {
           <Handshake className="size-5" aria-hidden />
         </span>
         <CardTitle className="text-xl">Sign in</CardTitle>
-        <CardDescription>Use the same username and password as your Expense Tracker.</CardDescription>
+        <CardDescription>Expense Tracker users: use your existing username and password.</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={onSubmit} className="grid gap-4" noValidate>
@@ -80,6 +93,20 @@ function LoginForm() {
             Sign in
           </Button>
         </form>
+        {config?.google_client_id && (
+          <div className="mt-4 grid gap-4">
+            <OrDivider />
+            <GoogleButton clientId={config.google_client_id} onCredential={onGoogle} />
+          </div>
+        )}
+        {config?.registration_open && (
+          <p className="mt-6 text-center text-sm text-muted-foreground">
+            New here?{" "}
+            <Link href="/signup/" className="font-medium text-foreground underline underline-offset-4">
+              Create an account
+            </Link>
+          </p>
+        )}
       </CardContent>
     </Card>
   );

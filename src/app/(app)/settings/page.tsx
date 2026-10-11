@@ -7,24 +7,30 @@ import { toast } from "sonner";
 import { PageHeader } from "@/components/common";
 import { Field } from "@/components/fields";
 import { FormError } from "@/components/form-dialog";
+import { GoogleButton, useAuthConfig } from "@/components/google-button";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { api, applyFieldErrors, API_BASE_URL, setCsrfToken, type Schemas } from "@/lib/api";
+import { api, ApiError, applyFieldErrors, API_BASE_URL, setCsrfToken, type Schemas } from "@/lib/api";
 import { useSession } from "@/lib/session";
 import { type ThemeChoice, useTheme } from "@/lib/theme";
 
 function PasswordCard() {
   const [error, setError] = useState<string | null>(null);
-  const { refresh } = useSession();
+  const { refresh, session, user } = useSession();
+  const hasPassword = session?.has_password ?? true;
   const form = useForm({ defaultValues: { current_password: "", new_password: "", confirm: "" } });
   const e = form.formState.errors;
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Change password</CardTitle>
-        <CardDescription>Signs out your other sessions. Use at least 10 characters.</CardDescription>
+        <CardTitle className="text-base">{hasPassword ? "Change password" : "Set a password"}</CardTitle>
+        <CardDescription>
+          {hasPassword
+            ? "Signs out your other sessions. Use at least 10 characters."
+            : `You sign in with Google. Add a password to also sign in with your username, ${user?.username}.`}
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <form
@@ -39,18 +45,79 @@ function PasswordCard() {
               setCsrfToken(s.csrf_token);
               await refresh();
               form.reset();
-              toast.success("Password changed");
+              toast.success(hasPassword ? "Password changed" : "Password set");
             } catch (err) {
               setError(applyFieldErrors(err, form.setError as never, ["current_password", "new_password"]));
             }
           })}
         >
-          <Field label="Current password" error={e.current_password?.message}>{({ id, invalid }) => <Input id={id} type="password" autoComplete="current-password" aria-invalid={invalid} {...form.register("current_password")} />}</Field>
+          {hasPassword && <Field label="Current password" error={e.current_password?.message}>{({ id, invalid }) => <Input id={id} type="password" autoComplete="current-password" aria-invalid={invalid} {...form.register("current_password")} />}</Field>}
           <Field label="New password" error={e.new_password?.message}>{({ id, invalid }) => <Input id={id} type="password" autoComplete="new-password" aria-invalid={invalid} {...form.register("new_password")} />}</Field>
           <Field label="Confirm new password" error={e.confirm?.message}>{({ id, invalid }) => <Input id={id} type="password" autoComplete="new-password" aria-invalid={invalid} {...form.register("confirm")} />}</Field>
           <FormError message={error} />
-          <div><Button type="submit" disabled={form.formState.isSubmitting}>{form.formState.isSubmitting ? "Saving…" : "Change password"}</Button></div>
+          <div><Button type="submit" disabled={form.formState.isSubmitting}>{form.formState.isSubmitting ? "Saving…" : hasPassword ? "Change password" : "Set password"}</Button></div>
         </form>
+      </CardContent>
+    </Card>
+  );
+}
+
+function GoogleCard() {
+  const clientId = useAuthConfig().data?.google_client_id;
+  const { session, refresh } = useSession();
+  const [busy, setBusy] = useState(false);
+  if (!clientId || !session) return null;
+  const fail = (err: unknown) => toast.error(err instanceof ApiError ? err.message : "Something went wrong");
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">Sign in with Google</CardTitle>
+        <CardDescription>
+          {session.google_connected
+            ? "Your Google account is connected. You can sign in with it instead of your password."
+            : "Connect your Google account to sign in with one click."}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="grid max-w-md gap-3">
+        {session.google_connected ? (
+          <>
+            <div>
+              <Button
+                variant="outline"
+                disabled={busy || !session.has_password}
+                onClick={async () => {
+                  setBusy(true);
+                  try {
+                    await api.delete("/auth/google/connect");
+                    await refresh();
+                    toast.success("Google disconnected");
+                  } catch (err) {
+                    fail(err);
+                  } finally {
+                    setBusy(false);
+                  }
+                }}
+              >
+                Disconnect Google
+              </Button>
+            </div>
+            {!session.has_password && <p className="text-xs text-muted-foreground">Set a password first, so you can still sign in without Google.</p>}
+          </>
+        ) : (
+          <GoogleButton
+            clientId={clientId}
+            text="continue_with"
+            onCredential={async (credential) => {
+              try {
+                await api.post("/auth/google/connect", { credential });
+                await refresh();
+                toast.success("Google connected");
+              } catch (err) {
+                fail(err);
+              }
+            }}
+          />
+        )}
       </CardContent>
     </Card>
   );
@@ -75,6 +142,7 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
         <PasswordCard />
+        <GoogleCard />
         <Card>
           <CardHeader>
             <CardTitle className="text-base">About</CardTitle>
