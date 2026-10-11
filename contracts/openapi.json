@@ -4099,6 +4099,198 @@
      }
     }
    }
+  },
+  "/api/v1/contact": {
+   "post": {
+    "tags": [
+     "contact"
+    ],
+    "summary": "Send Message",
+    "description": "Public. Stores the message; no email is sent. Rate-limited per visitor, with a honeypot field.",
+    "operationId": "send_message_api_v1_contact_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ContactIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "202": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/contact/messages": {
+   "get": {
+    "tags": [
+     "contact"
+    ],
+    "summary": "List Messages",
+    "operationId": "list_messages_api_v1_contact_messages_get",
+    "parameters": [
+     {
+      "name": "unread",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "boolean",
+       "default": false,
+       "title": "Unread"
+      }
+     },
+     {
+      "name": "page",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "maximum": 100000,
+       "minimum": 1,
+       "default": 1,
+       "title": "Page"
+      }
+     },
+     {
+      "name": "page_size",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "maximum": 200,
+       "minimum": 1,
+       "default": 50,
+       "title": "Page Size"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Page_ContactOut_"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/contact/messages/{message_id}": {
+   "patch": {
+    "tags": [
+     "contact"
+    ],
+    "summary": "Mark Message",
+    "operationId": "mark_message_api_v1_contact_messages__message_id__patch",
+    "parameters": [
+     {
+      "name": "message_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "Message Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ContactReadIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ContactOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "delete": {
+    "tags": [
+     "contact"
+    ],
+    "summary": "Delete Message",
+    "operationId": "delete_message_api_v1_contact_messages__message_id__delete",
+    "parameters": [
+     {
+      "name": "message_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "Message Id"
+      }
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
   }
  },
  "components": {
@@ -5056,6 +5248,112 @@
      "total"
     ],
     "title": "CategoryTotal"
+   },
+   "ContactIn": {
+    "properties": {
+     "name": {
+      "type": "string",
+      "maxLength": 100,
+      "minLength": 1,
+      "title": "Name"
+     },
+     "email": {
+      "type": "string",
+      "format": "email",
+      "title": "Email"
+     },
+     "topic": {
+      "type": "string",
+      "enum": [
+       "question",
+       "feedback",
+       "suggestion",
+       "collaboration",
+       "bug",
+       "business"
+      ],
+      "title": "Topic"
+     },
+     "message": {
+      "type": "string",
+      "maxLength": 5000,
+      "minLength": 10,
+      "title": "Message"
+     },
+     "website": {
+      "type": "string",
+      "maxLength": 200,
+      "title": "Website",
+      "default": ""
+     }
+    },
+    "additionalProperties": false,
+    "type": "object",
+    "required": [
+     "name",
+     "email",
+     "topic",
+     "message"
+    ],
+    "title": "ContactIn"
+   },
+   "ContactOut": {
+    "properties": {
+     "id": {
+      "type": "integer",
+      "title": "Id"
+     },
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "email": {
+      "type": "string",
+      "title": "Email"
+     },
+     "topic": {
+      "type": "string",
+      "title": "Topic"
+     },
+     "message": {
+      "type": "string",
+      "title": "Message"
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     },
+     "is_read": {
+      "type": "boolean",
+      "title": "Is Read"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "name",
+     "email",
+     "topic",
+     "message",
+     "created_at",
+     "is_read"
+    ],
+    "title": "ContactOut"
+   },
+   "ContactReadIn": {
+    "properties": {
+     "is_read": {
+      "type": "boolean",
+      "title": "Is Read"
+     }
+    },
+    "additionalProperties": false,
+    "type": "object",
+    "required": [
+     "is_read"
+    ],
+    "title": "ContactReadIn"
    },
    "CounterpartyIn": {
     "properties": {
@@ -7460,6 +7758,37 @@
     ],
     "title": "Obligation"
    },
+   "Page_ContactOut_": {
+    "properties": {
+     "items": {
+      "items": {
+       "$ref": "#/components/schemas/ContactOut"
+      },
+      "type": "array",
+      "title": "Items"
+     },
+     "total": {
+      "type": "integer",
+      "title": "Total"
+     },
+     "page": {
+      "type": "integer",
+      "title": "Page"
+     },
+     "page_size": {
+      "type": "integer",
+      "title": "Page Size"
+     }
+    },
+    "type": "object",
+    "required": [
+     "items",
+     "total",
+     "page",
+     "page_size"
+    ],
+    "title": "Page[ContactOut]"
+   },
    "Page_TransactionOut_": {
     "properties": {
      "items": {
@@ -8759,6 +9088,11 @@
      "last_name": {
       "type": "string",
       "title": "Last Name"
+     },
+     "is_staff": {
+      "type": "boolean",
+      "title": "Is Staff",
+      "default": false
      }
     },
     "type": "object",

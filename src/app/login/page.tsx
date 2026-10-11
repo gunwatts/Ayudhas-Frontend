@@ -115,9 +115,14 @@ function LoginForm() {
 export default function LoginPage() {
   return (
     <main className="grid min-h-screen place-items-center bg-background p-4">
-      <Suspense fallback={<Loader2 className="size-6 animate-spin text-muted-foreground" aria-label="Loading" />}>
-        <LoginForm />
-      </Suspense>
+      <div className="grid w-full max-w-sm justify-items-center gap-4">
+        <Suspense fallback={<Loader2 className="size-6 animate-spin text-muted-foreground" aria-label="Loading" />}>
+          <LoginForm />
+        </Suspense>
+        <a href="https://ayudhas.com" className="text-xs text-muted-foreground underline-offset-4 hover:underline">
+          Ayudhas Finance · part of Ayudhas
+        </a>
+      </div>
     </main>
   );
 }

@@ -26,6 +26,7 @@ import {
   Users,
   Vault,
   Wallet,
+  Inbox,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -96,11 +97,15 @@ function isActive(pathname: string, href: string) {
   return p.startsWith(href);
 }
 
+const OWNER_NAV = { section: "Site", items: [{ href: "/messages/", label: "Messages", icon: Inbox }] };
+
 function NavList({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
+  const { user } = useSession();
+  const groups = user?.is_staff ? [...NAV, OWNER_NAV] : NAV;
   return (
     <nav aria-label="Main" className="flex flex-col gap-5">
-      {NAV.map((group) => (
+      {groups.map((group) => (
         <div key={group.section}>
           <p className="mb-1.5 px-3 text-[11px] font-medium tracking-wider text-muted-foreground uppercase">{group.section}</p>
           <ul className="grid gap-0.5">
