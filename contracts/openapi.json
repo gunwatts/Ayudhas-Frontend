@@ -5958,12 +5958,6 @@
       "maxLength": 8192,
       "minLength": 1,
       "title": "Credential"
-     },
-     "invite_code": {
-      "type": "string",
-      "maxLength": 200,
-      "title": "Invite Code",
-      "default": ""
      }
     },
     "additionalProperties": false,

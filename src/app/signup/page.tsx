@@ -104,39 +104,30 @@ export default function SignupPage() {
   });
 
   const onGoogle = async (credential: string) => {
-    const invite = form.getValues("invite_code").trim();
-    if (inviteRequired && !invite) {
-      form.setError("invite_code", { message: "Enter your invite code, then continue with Google" });
-      return;
-    }
     setError(null);
     try {
-      adopt(await api.post<Schemas["SessionOut"]>("/auth/google", { credential, invite_code: invite }));
+      adopt(await api.post<Schemas["SessionOut"]>("/auth/google", { credential }));
       router.replace("/");
     } catch (err) {
-      if (err instanceof ApiError && err.details.some((d) => d.field === "invite_code")) {
-        form.setError("invite_code", { message: err.message });
-      } else {
-        setError(err instanceof ApiError ? err.message : "Google sign-in failed. Please try again.");
-      }
+      setError(err instanceof ApiError ? err.message : "Google sign-in failed. Please try again.");
     }
   };
 
   return (
     <Shell description="Free to use. Your data is private to your account.">
       <form onSubmit={onSubmit} className="grid gap-4" noValidate>
-        {inviteRequired && (
-          <Field label="Invite code" required error={e.invite_code?.message} hint="Ask the person who shared this site with you.">
-            {({ id, describedBy, invalid }) => (
-              <Input id={id} autoComplete="off" aria-describedby={describedBy} aria-invalid={invalid} {...form.register("invite_code")} />
-            )}
-          </Field>
-        )}
         {googleClientId && (
           <>
             <GoogleButton clientId={googleClientId} text="signup_with" onCredential={onGoogle} />
             <OrDivider />
           </>
+        )}
+        {inviteRequired && (
+          <Field label="Invite code" required error={e.invite_code?.message} hint="Needed for password sign-up. Ask the person who shared this site with you.">
+            {({ id, describedBy, invalid }) => (
+              <Input id={id} autoComplete="off" aria-describedby={describedBy} aria-invalid={invalid} {...form.register("invite_code")} />
+            )}
+          </Field>
         )}
         <Field label="Username" required error={e.username?.message}>
           {({ id, describedBy, invalid }) => (

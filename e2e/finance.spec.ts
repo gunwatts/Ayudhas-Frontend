@@ -224,6 +224,17 @@ test("the Google button sends Google's credential to the server, which rejects a
   await expect(page).toHaveURL(/\/login\//);
 });
 
+test("Google sign-up on the sign-up page does not ask for the invite code", async ({ page }) => {
+  await page.route("https://accounts.google.com/gsi/client", (route) =>
+    route.fulfill({ contentType: "text/javascript", body: FAKE_GOOGLE_SCRIPT }),
+  );
+  await page.goto("/signup/");
+  const sent = page.waitForRequest((r) => r.url().endsWith("/api/v1/auth/google") && r.method() === "POST");
+  await page.getByRole("button", { name: "Fake Google" }).click(); // invite code box left empty
+  expect((await sent).postDataJSON()).toEqual({ credential: "fake-id-token" });
+  await expect(page.getByText("Enter your invite code", { exact: true })).toHaveCount(0);
+});
+
 test("form validation is inline and nothing is saved @responsive", async ({ page }) => {
   await login(page);
   await page.getByRole("button", { name: /Add transaction/ }).click();

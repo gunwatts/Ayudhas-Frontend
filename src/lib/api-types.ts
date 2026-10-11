@@ -1560,11 +1560,6 @@ export interface components {
         GoogleSignInIn: {
             /** Credential */
             credential: string;
-            /**
-             * Invite Code
-             * @default
-             */
-            invite_code: string;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
