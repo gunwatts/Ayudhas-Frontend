@@ -133,8 +133,8 @@ test("complete money workflow stays consistent across every screen", async ({ pa
   const card = (label: string) => page.locator("[data-slot=card]").filter({ hasText: label }).first();
   await expect(card("Owed to you")).toContainText(inr(3000));
   await expect(card("Loans outstanding")).toContainText(inr(92115.12));
-  await expect(card("Income")).toContainText(inr(50000)); // loan, custody and transfers are not income
-  await expect(card("Expenses")).toContainText(inr(1200 + 1000)); // spending + loan interest only
+  await expect(page.getByTestId("kpi-salary")).toHaveText(inr(50000)); // recorded under Salary; loans, custody, transfers are not salary
+  await expect(page.getByTestId("kpi-spent")).toHaveText(inr(1200 + 1000)); // spending + loan interest only
 
   // 12. Edit then delete an expense; dependent figures follow.
   await page.getByRole("link", { name: "Expenses" }).click();
@@ -166,6 +166,86 @@ test("complete money workflow stays consistent across every screen", async ({ pa
   const status = await intruder.evaluate(async () => (await fetch("http://localhost:8000/api/v1/loans/1", { credentials: "include" })).status);
   expect(status).toBe(404);
   await other.close();
+});
+
+test("salary and an event's expenses count once on every screen", async ({ page }) => {
+  await login(page, INTRUDER); // a clean account: no money recorded yet
+  const monthLabel = new Intl.DateTimeFormat("en-IN", { month: "short", year: "numeric" }).format(new Date());
+
+  // Salary for this month.
+  await page.getByRole("link", { name: "Budgets" }).click();
+  await page.getByRole("button", { name: "Set monthly salary" }).first().click();
+  let dialog = page.getByRole("dialog");
+  await dialog.getByLabel(lbl("Salary for the month")).fill("40000");
+  await dialog.getByRole("button", { name: "Save salary" }).click();
+  await expect(dialog).toBeHidden();
+
+  // An event, and an expense recorded from its card.
+  await page.getByRole("tab", { name: "Events" }).click();
+  await page.getByRole("button", { name: "New event" }).first().click();
+  dialog = page.getByRole("dialog");
+  await dialog.getByLabel(lbl("Event name")).fill("Diwali");
+  await dialog.getByRole("button", { name: "Create event" }).click();
+  await expect(dialog).toBeHidden();
+  const eventCard = page.locator("[data-slot=card]").filter({ hasText: "Diwali" }).first();
+  await eventCard.getByRole("button", { name: "Add expense" }).click();
+  dialog = page.getByRole("dialog");
+  await expect(dialog.getByLabel("Event")).toHaveValue("Diwali");
+  await dialog.getByLabel(lbl("Amount")).fill("3000");
+  await dialog.getByLabel(lbl("Description")).fill("Lights and diyas");
+  await dialog.getByRole("button", { name: "Add expense" }).click();
+  await expect(dialog).toBeHidden();
+  await expect(eventCard).toContainText(inr(3000));
+  await expect(eventCard).toContainText("1 expense");
+  await eventCard.getByRole("button", { name: /Show transactions/ }).click();
+  await expect(eventCard).toContainText("Lights and diyas");
+  await expect(eventCard).toContainText(`${monthLabel} · ${inr(3000)}`);
+
+  // A second expense, typed with the event name in a different case: same event, not a new one.
+  await page.getByRole("button", { name: /Add transaction/ }).click();
+  dialog = page.getByRole("dialog");
+  await dialog.getByLabel(lbl("Amount")).fill("500");
+  await dialog.getByLabel(lbl("Description")).fill("Sweets");
+  await dialog.getByLabel("Event").fill("diwali");
+  await dialog.getByRole("button", { name: "Add expense" }).click();
+  await expect(dialog).toBeHidden();
+  // And a regular expense with no event.
+  await page.getByRole("button", { name: /Add transaction/ }).click();
+  dialog = page.getByRole("dialog");
+  await dialog.getByLabel(lbl("Amount")).fill("1000");
+  await dialog.getByLabel(lbl("Description")).fill("Groceries");
+  await dialog.getByRole("button", { name: "Add expense" }).click();
+  await expect(dialog).toBeHidden();
+  await expect(page.locator("[data-slot=card]").filter({ hasText: "Diwali" })).toHaveCount(1);
+  await expect(eventCard).toContainText(inr(3500));
+
+  // The month counts every expense once: 3000 + 500 (event) + 1000 = 4500 of 40000.
+  await page.getByRole("tab", { name: "Monthly salary" }).click();
+  const monthCard = page.locator("[data-slot=card]").filter({ hasText: monthLabel }).first();
+  await expect(monthCard).toContainText(inr(4500));
+  await expect(monthCard).toContainText(inr(35500));
+
+  await page.getByRole("link", { name: "Overview" }).click();
+  await expect(page.getByTestId("kpi-salary")).toHaveText(inr(40000));
+  await expect(page.getByTestId("kpi-spent")).toHaveText(inr(4500));
+  await expect(page.getByTestId("kpi-remaining")).toHaveText(inr(35500));
+
+  await page.getByRole("link", { name: "Reports" }).click();
+  await expect(page.getByTestId("report-salary")).toContainText(inr(40000));
+  await expect(page.getByTestId("report-expenses")).toContainText(inr(4500));
+  await expect(page.getByTestId("report-remaining")).toContainText(inr(35500));
+});
+
+test("charts do not draw a focus box when clicked", async ({ page }) => {
+  await login(page);
+  const chart = page.locator(".recharts-wrapper").first();
+  await chart.click({ position: { x: 120, y: 80 } });
+  const outline = await chart.evaluate((el) => {
+    const focused = document.activeElement as Element | null;
+    const target = focused && el.contains(focused) ? focused : el;
+    return getComputedStyle(target).outlineStyle;
+  });
+  expect(outline).toBe("none");
 });
 
 test("unauthenticated visitors are sent to sign-in, and bad credentials are rejected", async ({ page }) => {

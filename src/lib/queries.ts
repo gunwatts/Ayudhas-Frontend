@@ -31,6 +31,7 @@ export type TxnFilters = {
   account_id?: number;
   category_id?: number;
   counterparty_id?: number;
+  event_id?: number;
   start?: string;
   end?: string;
   q?: string;

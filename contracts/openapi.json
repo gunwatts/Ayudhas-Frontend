@@ -4862,6 +4862,68 @@
       ],
       "title": "Utilization"
      },
+     "salary": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Salary"
+     },
+     "salary_source": {
+      "anyOf": [
+       {
+        "type": "string",
+        "enum": [
+         "income",
+         "set",
+         "none"
+        ]
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Salary Source"
+     },
+     "transaction_count": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Transaction Count"
+     },
+     "first_date": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "First Date"
+     },
+     "last_date": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Last Date"
+     },
      "lines": {
       "items": {
        "$ref": "#/components/schemas/BudgetLineOut"
@@ -5025,6 +5087,33 @@
        }
       ],
       "title": "Utilization"
+     },
+     "salary": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Salary"
+     },
+     "salary_source": {
+      "anyOf": [
+       {
+        "type": "string",
+        "enum": [
+         "income",
+         "set",
+         "none"
+        ]
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Salary Source"
      }
     },
     "type": "object",
@@ -6009,6 +6098,18 @@
      "loan_principal_repaid": {
       "type": "string",
       "title": "Loan Principal Repaid"
+     },
+     "salary": {
+      "type": "string",
+      "title": "Salary"
+     },
+     "other_income": {
+      "type": "string",
+      "title": "Other Income"
+     },
+     "remaining": {
+      "type": "string",
+      "title": "Remaining"
      }
     },
     "type": "object",
@@ -6017,7 +6118,10 @@
      "expenses",
      "net_cash_flow",
      "transfers",
-     "loan_principal_repaid"
+     "loan_principal_repaid",
+     "salary",
+     "other_income",
+     "remaining"
     ],
     "title": "Flows"
    },
@@ -8616,6 +8720,18 @@
       ],
       "title": "Event Id"
      },
+     "event_name": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 150
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Event Name"
+     },
      "description": {
       "type": "string",
       "maxLength": 255,
@@ -8974,6 +9090,18 @@
       ],
       "title": "Event Id"
      },
+     "event_name": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 150
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Event Name"
+     },
      "description": {
       "anyOf": [
        {
@@ -9056,6 +9184,27 @@
      "net": {
       "type": "string",
       "title": "Net"
+     },
+     "salary": {
+      "type": "string",
+      "title": "Salary"
+     },
+     "salary_source": {
+      "type": "string",
+      "enum": [
+       "income",
+       "set",
+       "none"
+      ],
+      "title": "Salary Source"
+     },
+     "other_income": {
+      "type": "string",
+      "title": "Other Income"
+     },
+     "remaining": {
+      "type": "string",
+      "title": "Remaining"
      }
     },
     "type": "object",
@@ -9063,7 +9212,11 @@
      "month",
      "income",
      "expenses",
-     "net"
+     "net",
+     "salary",
+     "salary_source",
+     "other_income",
+     "remaining"
     ],
     "title": "TrendPoint"
    },

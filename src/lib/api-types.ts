@@ -1215,6 +1215,16 @@ export interface components {
             remaining: string;
             /** Utilization */
             utilization: number | null;
+            /** Salary */
+            salary?: string | null;
+            /** Salary Source */
+            salary_source?: ("income" | "set" | "none") | null;
+            /** Transaction Count */
+            transaction_count?: number | null;
+            /** First Date */
+            first_date?: string | null;
+            /** Last Date */
+            last_date?: string | null;
             /**
              * Lines
              * @default []
@@ -1256,6 +1266,10 @@ export interface components {
             remaining: string;
             /** Utilization */
             utilization: number | null;
+            /** Salary */
+            salary?: string | null;
+            /** Salary Source */
+            salary_source?: ("income" | "set" | "none") | null;
         };
         /** CategoryIn */
         CategoryIn: {
@@ -1599,6 +1613,12 @@ export interface components {
             transfers: string;
             /** Loan Principal Repaid */
             loan_principal_repaid: string;
+            /** Salary */
+            salary: string;
+            /** Other Income */
+            other_income: string;
+            /** Remaining */
+            remaining: string;
         };
         /** GoalIn */
         GoalIn: {
@@ -2355,6 +2375,8 @@ export interface components {
             counterparty_id?: number | null;
             /** Event Id */
             event_id?: number | null;
+            /** Event Name */
+            event_name?: string | null;
             /**
              * Description
              * @default
@@ -2456,6 +2478,8 @@ export interface components {
             counterparty_id?: number | null;
             /** Event Id */
             event_id?: number | null;
+            /** Event Name */
+            event_name?: string | null;
             /** Description */
             description?: string | null;
             /** Merchant */
@@ -2475,6 +2499,17 @@ export interface components {
             expenses: string;
             /** Net */
             net: string;
+            /** Salary */
+            salary: string;
+            /**
+             * Salary Source
+             * @enum {string}
+             */
+            salary_source: "income" | "set" | "none";
+            /** Other Income */
+            other_income: string;
+            /** Remaining */
+            remaining: string;
         };
         /** UserOut */
         UserOut: {

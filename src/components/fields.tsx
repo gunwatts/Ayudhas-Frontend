@@ -5,7 +5,7 @@ import { useId } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { usePeople, useAccounts, useCategories } from "@/lib/queries";
+import { useAccounts, useBudgets, useCategories, usePeople } from "@/lib/queries";
 import { cn } from "@/lib/utils";
 
 export const NONE = "__none__";
@@ -141,6 +141,31 @@ export function PersonInput({ id, value, onChange, invalid, describedBy, placeho
       <datalist id={listId}>
         {data.map((p) => (
           <option key={p.id} value={p.name} />
+        ))}
+      </datalist>
+    </>
+  );
+}
+
+/** Free-text event name with suggestions; the API links an existing event (any case) or creates a new one. */
+export function EventInput({ id, value, onChange, invalid, describedBy }: SelectProps) {
+  const { data = [] } = useBudgets("event");
+  const listId = `${id}-events`;
+  return (
+    <>
+      <Input
+        id={id}
+        list={listId}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        aria-invalid={invalid}
+        aria-describedby={describedBy}
+        placeholder="None, or e.g. Sister's wedding"
+        autoComplete="off"
+      />
+      <datalist id={listId}>
+        {data.map((e) => (
+          <option key={e.id} value={e.name} />
         ))}
       </datalist>
     </>

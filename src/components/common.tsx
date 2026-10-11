@@ -17,6 +17,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { AnimatedMoney } from "@/components/motion";
 import { cn } from "@/lib/utils";
 import { formatMoney, isNegative } from "@/lib/money";
 
@@ -64,35 +65,62 @@ export function PageHeader({
   );
 }
 
+/** Accent colours for KPI cards: an icon chip and a faint glow in the card's corner. */
+const ACCENTS = {
+  neutral: { chip: "bg-foreground/5 text-muted-foreground", glow: "transparent" },
+  salary: { chip: "bg-salary/15 text-salary", glow: "var(--salary)" },
+  spend: { chip: "bg-spend/15 text-spend", glow: "var(--spend)" },
+  remain: { chip: "bg-remain/15 text-remain", glow: "var(--remain)" },
+  gold: { chip: "bg-chart-4/15 text-chart-4", glow: "var(--chart-4)" },
+  violet: { chip: "bg-chart-7/15 text-chart-7", glow: "var(--chart-7)" },
+} as const;
+
 export function StatCard({
   label,
   value,
   hint,
   icon: Icon,
   tone = "neutral",
+  accent = "neutral",
   loading,
   className,
+  delay = 0,
+  testId,
 }: {
   label: string;
   value: string | null | undefined;
   hint?: React.ReactNode;
   icon?: React.ComponentType<{ className?: string }>;
   tone?: "neutral" | "auto";
+  accent?: keyof typeof ACCENTS;
   loading?: boolean;
   className?: string;
+  /** Entrance stagger in seconds. */
+  delay?: number;
+  testId?: string;
 }) {
+  const a = ACCENTS[accent];
   return (
-    <Card className={cn("gap-0 py-4", className)}>
-      <CardContent className="px-4">
+    <Card className={cn("lift animate-rise relative gap-0 py-4", className)} style={{ ["--delay" as string]: `${delay}s` }}>
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -top-10 -right-10 size-28 rounded-full opacity-25 blur-2xl"
+        style={{ background: a.glow }}
+      />
+      <CardContent className="relative px-4">
         <div className="flex items-center justify-between gap-2 text-sm text-muted-foreground">
           <span>{label}</span>
-          {Icon && <Icon className="size-4 shrink-0" aria-hidden />}
+          {Icon && (
+            <span className={cn("grid size-7 shrink-0 place-items-center rounded-lg", a.chip)}>
+              <Icon className="size-4" aria-hidden />
+            </span>
+          )}
         </div>
         {loading ? (
           <Skeleton className="mt-2 h-7 w-32" />
         ) : (
           <div className="mt-1.5 text-2xl font-semibold tracking-tight">
-            <Money value={value} tone={tone} />
+            <AnimatedMoney value={value} tone={tone} data-testid={testId} />
           </div>
         )}
         {hint && !loading && <div className="mt-1 text-xs text-muted-foreground">{hint}</div>}
@@ -209,13 +237,28 @@ export function ConfirmAction({
   );
 }
 
-export function ProgressBar({ value, tone = "primary", label }: { value: number; tone?: "primary" | "warning" | "danger" | "positive"; label: string }) {
+export function ProgressBar({
+  value,
+  tone = "primary",
+  label,
+  className,
+}: {
+  value: number;
+  tone?: "primary" | "warning" | "danger" | "positive";
+  label: string;
+  className?: string;
+}) {
   const pct = Math.max(0, Math.min(100, value));
-  const fill = { primary: "bg-primary", warning: "bg-warning", danger: "bg-destructive", positive: "bg-positive" }[tone];
-  const track = { primary: "bg-primary/15", warning: "bg-warning/15", danger: "bg-destructive/15", positive: "bg-positive/15" }[tone];
+  const fill = {
+    primary: "bg-gradient-to-r from-primary/70 to-primary",
+    warning: "bg-gradient-to-r from-warning/70 to-warning",
+    danger: "bg-gradient-to-r from-destructive/70 to-destructive",
+    positive: "bg-gradient-to-r from-positive/70 to-positive",
+  }[tone];
+  const track = { primary: "bg-primary/12", warning: "bg-warning/15", danger: "bg-destructive/15", positive: "bg-positive/15" }[tone];
   return (
-    <div className={cn("h-2 w-full overflow-hidden rounded-full", track)} role="progressbar" aria-valuenow={Math.round(pct)} aria-valuemin={0} aria-valuemax={100} aria-label={label}>
-      <div className={cn("h-full rounded-full transition-[width] duration-500", fill)} style={{ width: `${pct}%` }} />
+    <div className={cn("h-2 w-full overflow-hidden rounded-full", track, className)} role="progressbar" aria-valuenow={Math.round(pct)} aria-valuemin={0} aria-valuemax={100} aria-label={label}>
+      <div className={cn("animate-grow-x h-full rounded-full transition-[width] duration-700", fill)} style={{ width: `${pct}%` }} />
     </div>
   );
 }
@@ -233,5 +276,22 @@ export function SectionTitle({ children, action }: { children: React.ReactNode; 
       <h2 className="text-base font-semibold">{children}</h2>
       {action}
     </div>
+  );
+}
+
+/** "Down 4% vs previous" style comparison; `upIsGood` decides the colour. */
+export function Delta({ current, previous, upIsGood }: { current: string; previous: string; upIsGood: boolean }) {
+  const c = Number(current);
+  const p = Number(previous);
+  if (!p) return <span className="text-xs text-muted-foreground">No data in the previous period</span>;
+  const pct = ((c - p) / Math.abs(p)) * 100;
+  if (Math.abs(pct) < 0.5) return <span className="text-xs text-muted-foreground">About the same as before</span>;
+  const up = pct > 0;
+  const good = up === upIsGood;
+  return (
+    <span className={cn("inline-flex items-center gap-1 text-xs font-medium", good ? "text-positive" : "text-negative")}>
+      <span aria-hidden>{up ? "▲" : "▼"}</span>
+      {up ? "Up" : "Down"} {Math.abs(pct).toFixed(1)}% vs previous
+    </span>
   );
 }

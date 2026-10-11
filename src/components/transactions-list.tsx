@@ -100,7 +100,8 @@ export function TransactionsList({ items, emptyTitle = "No transactions yet", em
   const [editing, setEditing] = useState<Txn | null>(null);
   if (!items.length) return <EmptyState title={emptyTitle} description={emptyDescription ?? "Press N or use “Add transaction” to record one."} icon={ArrowLeftRight} />;
 
-  // Group by date for scannability.
+  // Group by date for scannability. Rows fade in one after another (only the first dozen are staggered).
+  const order = new Map(items.map((t, i) => [t.id, i]));
   const groups: { date: string; rows: Txn[] }[] = [];
   for (const t of items) {
     const g = groups.at(-1);
@@ -116,10 +117,10 @@ export function TransactionsList({ items, emptyTitle = "No transactions yet", em
             {!compact && <h3 className="bg-muted/40 px-4 py-1.5 text-xs font-medium text-muted-foreground">{formatDate(g.date, "EEE, d MMM yyyy")}</h3>}
             <ul className="divide-y">
               {g.rows.map((t) => (
-                <li key={t.id} className="flex items-center gap-3 px-4 py-2.5">
+                <li key={t.id} className="animate-rise flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-muted/40" style={{ ["--delay" as string]: `${Math.min(order.get(t.id) ?? 0, 12) * 0.03}s` }}>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <p className="truncate text-sm font-medium">{title(t)}</p>
+                      <p className="min-w-0 truncate text-sm font-medium">{title(t)}</p>
                       {t.kind !== "expense" && t.kind !== "income" && (
                         <Badge variant="secondary" className="shrink-0 text-[10px] font-normal">
                           {t.kind_label}

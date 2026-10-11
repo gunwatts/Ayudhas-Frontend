@@ -5,7 +5,8 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { CategoryBreakdown } from "@/components/charts";
-import { ErrorState, LoadingRows, Money } from "@/components/common";
+import { ErrorState, LoadingRows } from "@/components/common";
+import { AnimatedMoney } from "@/components/motion";
 import { NONE } from "@/components/fields";
 import { PeriodPicker, usePeriod } from "@/components/period-picker";
 import { TransactionsList } from "@/components/transactions-list";
@@ -162,7 +163,7 @@ export function LedgerView({ fixedKind }: { fixedKind?: "income" | "expense" }) 
             </CardHeader>
             <CardContent className="grid gap-1">
               <p className="text-3xl font-semibold tracking-tight">
-                <Money value={fixedKind === "income" ? flows.data?.income : flows.data?.expenses} />
+                <AnimatedMoney value={fixedKind === "income" ? flows.data?.income : flows.data?.expenses} />
               </p>
               <p className="text-xs text-muted-foreground">
                 {fixedKind === "income"

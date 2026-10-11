@@ -5,16 +5,15 @@ import { useMemo, useState } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 
-import { AccountSelect, AmountInput, CategorySelect, Field, NONE, SimpleSelect } from "@/components/fields";
+import { AccountSelect, AmountInput, CategorySelect, EventInput, Field, NONE, SimpleSelect } from "@/components/fields";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { api, applyFieldErrors, newIdempotencyKey } from "@/lib/api";
 import { today } from "@/lib/dates";
 import { isValidAmount, normalizeAmount } from "@/lib/money";
-import { type Txn, useBudgets, useFinanceMutation } from "@/lib/queries";
+import { type Txn, useFinanceMutation } from "@/lib/queries";
 
 export const GENERIC_KINDS = ["expense", "income", "transfer", "refund", "adjustment_in", "adjustment_out"] as const;
 export type GenericKind = (typeof GENERIC_KINDS)[number];
@@ -48,7 +47,7 @@ const schema = z
     account_id: z.string(),
     to_account_id: z.string(),
     category_id: z.string(),
-    event_id: z.string(),
+    event_name: z.string().max(150, "Keep the event name under 150 characters"),
     description: z.string().max(255, "Keep it under 255 characters"),
     merchant: z.string().max(150),
     payment_method: z.string(),
@@ -66,7 +65,7 @@ const schema = z
   });
 
 type Values = z.infer<typeof schema>;
-const FIELDS = ["kind", "amount", "date", "time", "account_id", "to_account_id", "category_id", "event_id", "description", "merchant", "payment_method", "notes"] as const;
+const FIELDS = ["kind", "amount", "date", "time", "account_id", "to_account_id", "category_id", "event_name", "description", "merchant", "payment_method", "notes"] as const;
 
 function toBody(v: Values) {
   const id = (s: string) => (s ? Number(s) : null);
@@ -79,7 +78,8 @@ function toBody(v: Values) {
     account_id: id(v.account_id),
     to_account_id: v.kind === "transfer" ? id(v.to_account_id) : null,
     category_id: v.kind === "income" || isSpend ? id(v.category_id) : null,
-    event_id: isSpend ? id(v.event_id) : null,
+    // Matched to an existing event by name (any case) or created by the server; "" removes the link.
+    event_name: isSpend ? v.event_name.trim() : "",
     description: v.description.trim(),
     merchant: isSpend ? v.merchant.trim() : "",
     payment_method: v.payment_method === NONE ? "" : v.payment_method,
@@ -90,16 +90,18 @@ function toBody(v: Values) {
 export function TransactionForm({
   initial,
   defaultKind = "expense",
+  defaultEventName = "",
   onDone,
 }: {
   initial?: Txn;
   defaultKind?: GenericKind;
+  /** Pre-fill the event (e.g. "Add expense" on an event card). */
+  defaultEventName?: string;
   onDone: (txn: Txn) => void;
 }) {
   const [idempotencyKey] = useState(newIdempotencyKey);
   const [formError, setFormError] = useState<string | null>(null);
   const [showMore, setShowMore] = useState(!!initial && (["refund", "adjustment_in", "adjustment_out"] as string[]).includes(initial.kind));
-  const events = useBudgets("event");
 
   const defaults = useMemo<Values>(
     () => ({
@@ -110,13 +112,13 @@ export function TransactionForm({
       account_id: initial?.account ? String(initial.account.id) : "",
       to_account_id: initial?.to_account ? String(initial.to_account.id) : "",
       category_id: initial?.category ? String(initial.category.id) : "",
-      event_id: initial?.event ? String(initial.event.id) : "",
+      event_name: initial?.event?.name ?? defaultEventName,
       description: initial?.description ?? "",
       merchant: initial?.merchant ?? "",
       payment_method: initial?.payment_method || NONE,
       notes: initial?.notes ?? "",
     }),
-    [initial, defaultKind],
+    [initial, defaultKind, defaultEventName],
   );
 
   const form = useForm<Values>({ resolver: zodResolver(schema), defaultValues: defaults });
@@ -261,31 +263,20 @@ export function TransactionForm({
                 />
               )}
             </Field>
-            {(events.data?.length ?? 0) > 0 && (
-              <Field label="Event budget" hint="Event spending is tracked separately from monthly budgets." className="sm:col-span-2">
-                {({ id, describedBy }) => (
-                  <Controller
-                    control={control}
-                    name="event_id"
-                    render={({ field }) => (
-                      <Select value={field.value || NONE} onValueChange={(v) => field.onChange(v === NONE ? "" : v)}>
-                        <SelectTrigger id={id} aria-describedby={describedBy} className="w-full">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value={NONE}>None (regular spending)</SelectItem>
-                          {events.data?.map((e) => (
-                            <SelectItem key={e.id} value={String(e.id)}>
-                              {e.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    )}
-                  />
-                )}
-              </Field>
-            )}
+            <Field
+              label="Event"
+              hint="Optional. Groups this expense with others for an occasion, like a wedding or a trip. Pick one or type a new name. It still counts in this month's spending."
+              error={formState.errors.event_name?.message}
+              className="sm:col-span-2"
+            >
+              {({ id, describedBy, invalid }) => (
+                <Controller
+                  control={control}
+                  name="event_name"
+                  render={({ field }) => <EventInput id={id} value={field.value} onChange={field.onChange} invalid={invalid} describedBy={describedBy} />}
+                />
+              )}
+            </Field>
           </>
         )}
 
