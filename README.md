@@ -8,7 +8,7 @@ A static export (`output: "export"`) for GitHub Pages. All data is fetched clien
 | Type-check, lint, unit tests | `npm run typecheck`, `npm run lint`, `npm test` |
 | Production build | `NEXT_PUBLIC_API_BASE_URL=https://<api-host> npm run build`, which writes `out/` |
 | End-to-end tests | `npm run test:e2e`. Needs the backend on :8000 and `out/` served on :3000; see `docs/06_TESTING.md`. |
-| Refresh API types | `npm run gen:api` (from `../shared/openapi.json`) |
+| Refresh API types | `npm run gen:api` (from `contracts/openapi.json`, a copy of the backend's `openapi.json`) |
 
 ## Structure
 - `src/app/(app)/…`: authenticated pages. Detail pages use query strings (`/loans/view/?id=1`) because a static export can't prerender per-user routes.
