@@ -140,7 +140,7 @@ export default function OverviewPage() {
             <CardTitle className="text-base">Spending by category</CardTitle>
             <CardDescription>{periodLabel}, including event spending.</CardDescription>
           </CardHeader>
-          <CardContent>{isPending ? <Skeleton className="h-60 w-full" /> : <CategoryBreakdown data={data?.expense_by_category ?? []} />}</CardContent>
+          <CardContent>{isPending ? <Skeleton className="h-60 w-full" /> : <CategoryBreakdown data={data?.expense_by_category ?? []} period={period} />}</CardContent>
         </Card>
         <div className="grid content-start gap-4 lg:col-span-2">
           <div>

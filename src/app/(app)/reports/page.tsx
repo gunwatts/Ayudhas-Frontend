@@ -180,11 +180,11 @@ export default function ReportsPage() {
       <div className="grid gap-4 lg:grid-cols-5">
         <Card className="lg:col-span-3">
           <CardHeader><CardTitle className="text-base">Spending by category</CardTitle></CardHeader>
-          <CardContent>{expenses.data ? <CategoryBreakdown data={expenses.data} /> : <Skeleton className="h-60 w-full" />}</CardContent>
+          <CardContent>{expenses.data ? <CategoryBreakdown data={expenses.data} period={period} /> : <Skeleton className="h-60 w-full" />}</CardContent>
         </Card>
         <Card className="lg:col-span-2">
           <CardHeader><CardTitle className="text-base">Income by source</CardTitle></CardHeader>
-          <CardContent>{income.data ? <CategoryBreakdown data={income.data} emptyLabel="No income recorded in this period" defaultView="bars" /> : <Skeleton className="h-60 w-full" />}</CardContent>
+          <CardContent>{income.data ? <CategoryBreakdown data={income.data} emptyLabel="No income recorded in this period" defaultView="bars" period={period} kind="income" /> : <Skeleton className="h-60 w-full" />}</CardContent>
         </Card>
       </div>
       <div>

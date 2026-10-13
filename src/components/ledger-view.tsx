@@ -177,7 +177,7 @@ export function LedgerView({ fixedKind }: { fixedKind?: "income" | "expense" }) 
               <CardTitle className="text-base">By category</CardTitle>
             </CardHeader>
             <CardContent>
-              <CategoryBreakdown data={breakdown.data ?? []} emptyLabel={fixedKind === "income" ? "No income in this period" : "No spending in this period"} />
+              <CategoryBreakdown data={breakdown.data ?? []} emptyLabel={fixedKind === "income" ? "No income in this period" : "No spending in this period"} period={period} kind={fixedKind} />
             </CardContent>
           </Card>
         </div>

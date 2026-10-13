@@ -128,6 +128,72 @@ describe("CategoryBreakdown", () => {
   });
 });
 
+describe("Category transactions pop-up", () => {
+  const data = [
+    { category_id: 1, name: "Rent", color: "", total: "14500.00" },
+    { category_id: 2, name: "Food", color: "", total: "800.00" },
+  ];
+  const txn = (id: number, kind: string, amount: string, categoryId: number, description: string) => ({
+    id,
+    kind,
+    kind_label: kind,
+    amount,
+    date: "2026-10-05",
+    time: null,
+    description,
+    merchant: "",
+    category: { id: categoryId, name: categoryId === 1 ? "Rent" : "Rent > Deposit" },
+    account: null,
+    to_account: null,
+    counterparty: null,
+    event: null,
+  });
+  const page = {
+    items: [txn(11, "expense", "15000.00", 1, "House rent"), txn(12, "refund", "500.00", 1, "Rent refund"), txn(13, "expense", "999.00", 7, "Sub-category row")],
+    total: 3,
+    page: 1,
+    page_size: 200,
+  };
+  const period = { start: "2026-10-01", end: "2026-10-31" };
+
+  it("opens on double-click with the category's transactions and the same total as the chart", async () => {
+    const fetchFn = routeFetch({ "GET /transactions": () => ({ body: page }) });
+    wrap(<CategoryBreakdown data={data} period={period} />);
+    await userEvent.dblClick(screen.getByRole("button", { name: /^Rent/ }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByRole("heading", { name: "Rent" })).toBeInTheDocument();
+    expect(await within(dialog).findByText("House rent")).toBeInTheDocument();
+    expect(within(dialog).getByText("Rent refund")).toBeInTheDocument();
+    expect(within(dialog).queryByText("Sub-category row")).not.toBeInTheDocument(); // a slice of its own in the chart
+    expect(within(dialog).getByText("2 transactions")).toBeInTheDocument();
+    expect(within(dialog).getByTestId("category-total")).toHaveTextContent("₹14,500.00"); // 15000 − 500 refund
+    const url = new URL(fetchFn.mock.calls.find(([u]) => String(u).includes("/transactions"))![0] as string);
+    expect(url.searchParams.get("category_id")).toBe("1");
+    expect(url.searchParams.getAll("kind")).toEqual(["expense", "refund"]);
+    expect([url.searchParams.get("start"), url.searchParams.get("end")]).toEqual(["2026-10-01", "2026-10-31"]);
+  });
+
+  it("does not open on a single click, and opens with Enter from the keyboard", async () => {
+    routeFetch({ "GET /transactions": () => ({ body: page }) });
+    wrap(<CategoryBreakdown data={data} period={period} />);
+    const food = screen.getByRole("button", { name: /^Food/ });
+    await userEvent.click(food);
+    await new Promise((r) => setTimeout(r, 450));
+    await userEvent.click(food); // two clicks far apart are not a double-click
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    food.focus();
+    await userEvent.keyboard("{Enter}");
+    expect(await screen.findByRole("dialog")).toHaveTextContent("Food");
+  });
+
+  it("is off when the chart has no period", async () => {
+    render(<CategoryBreakdown data={data} />);
+    await userEvent.dblClick(screen.getByRole("button", { name: /^Rent/ }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Double-click a category/)).not.toBeInTheDocument();
+  });
+});
+
 describe("SalaryExpensesChart", () => {
   const point = (month: string, salary: string, expenses: string, source: "income" | "set" | "none" = "set") => ({
     month,

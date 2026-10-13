@@ -1,9 +1,10 @@
 "use client";
 
 import { ChevronLeft, ChevronRight, Donut, Rows3 } from "lucide-react";
-import { useId, useMemo, useState } from "react";
+import { useId, useMemo, useRef, useState } from "react";
 import { Bar, CartesianGrid, Cell, ComposedChart, Line, Pie, PieChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
+import { type CategoryDrill, CategoryTransactionsDialog } from "@/components/category-transactions";
 import { ProgressBar, utilizationTone } from "@/components/common";
 import { AnimatedMoney } from "@/components/motion";
 import { formatMonth } from "@/lib/dates";
@@ -246,7 +247,7 @@ export function SalaryExpensesChart({ data, height = 280 }: { data: TrendPoint[]
   );
 }
 
-type Slice = { name: string; value: number; raw: string; color: string };
+type Slice = { name: string; value: number; raw: string; color: string; ids: (number | null)[] };
 
 function buildSlices(data: CategoryTotal[], max = 7): Slice[] {
   const positive = data.filter((d) => toNumber(d.total) > 0).sort((a, b) => toNumber(b.total) - toNumber(a.total));
@@ -254,27 +255,64 @@ function buildSlices(data: CategoryTotal[], max = 7): Slice[] {
   const rest = positive.slice(max);
   const otherTotal = rest.reduce((s, d) => s + toNumber(d.total), 0);
   return [
-    ...top.map((d, i) => ({ name: d.name, value: toNumber(d.total), raw: d.total, color: SLOTS[i % SLOTS.length] })),
-    ...(rest.length ? [{ name: `Other (${rest.length} categories)`, value: otherTotal, raw: otherTotal.toFixed(2), color: OTHER }] : []),
+    ...top.map((d, i) => ({ name: d.name, value: toNumber(d.total), raw: d.total, color: SLOTS[i % SLOTS.length], ids: [d.category_id] })),
+    ...(rest.length ? [{ name: `Other (${rest.length} categories)`, value: otherTotal, raw: otherTotal.toFixed(2), color: OTHER, ids: rest.map((d) => d.category_id) }] : []),
   ];
 }
+
+const DOUBLE_TAP_MS = 400;
 
 /**
  * Where the money went, by category. Two views of the same numbers: a donut for share, and ranked bars for
  * comparing amounts. The list beside the donut doubles as its table view; nothing is cut off at any width.
+ * With `period`, double-clicking (or double-tapping) a category opens its transactions; Enter does it from the keyboard.
  */
 export function CategoryBreakdown({
   data,
   emptyLabel = "No spending in this period",
   defaultView = "donut",
+  period,
+  kind = "expense",
 }: {
   data: CategoryTotal[];
   emptyLabel?: string;
   defaultView?: "donut" | "bars";
+  /** The date range `data` covers. Enables the transactions pop-up. */
+  period?: { start: string; end: string };
+  kind?: "expense" | "income";
 }) {
   const [view, setView] = useState<"donut" | "bars">(defaultView);
   const [active, setActive] = useState<number | null>(null);
+  const [drill, setDrill] = useState<CategoryDrill | null>(null);
+  const lastTap = useRef<{ index: number; at: number } | null>(null);
   const slices = useMemo(() => buildSlices(data), [data]);
+  const open = (i: number) => {
+    const s = slices[i];
+    if (period && s) setDrill({ name: s.name, color: s.color, categoryIds: s.ids, kind, start: period.start, end: period.end });
+  };
+  // Two clicks on the same category within DOUBLE_TAP_MS: works for a mouse double-click and a touch double-tap.
+  const tap = (i: number, now: number) => {
+    const last = lastTap.current;
+    lastTap.current = { index: i, at: now };
+    if (last && last.index === i && now - last.at < DOUBLE_TAP_MS) {
+      lastTap.current = null;
+      open(i);
+    }
+  };
+  const rowProps = (i: number) =>
+    period
+      ? {
+          onClick: (e: React.MouseEvent) => tap(i, e.timeStamp),
+          onKeyDown: (e: React.KeyboardEvent) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              open(i);
+            }
+          },
+          "aria-haspopup": "dialog" as const,
+          title: "Double-click to see transactions",
+        }
+      : {};
   const total = slices.reduce((s, d) => s + d.value, 0);
   if (!slices.length) return <p className="py-10 text-center text-sm text-muted-foreground">{emptyLabel}</p>;
   const focus = active !== null ? slices[active] : null;
@@ -282,7 +320,8 @@ export function CategoryBreakdown({
 
   return (
     <div className="@container grid min-w-0 grid-cols-1 gap-4">
-      <div className="flex justify-end">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        {period ? <p className="text-xs text-muted-foreground">Double-click a category to see its transactions.</p> : <span />}
         <div className="inline-flex rounded-lg border bg-card/60 p-0.5" role="group" aria-label="Chart view">
           {(
             [
@@ -321,6 +360,8 @@ export function CategoryBreakdown({
                   animationEasing={EASE}
                   onMouseEnter={(_, i) => setActive(i)}
                   onMouseLeave={() => setActive(null)}
+                  onClick={period ? (_, i, e) => tap(i, e.timeStamp) : undefined}
+                  style={period ? { cursor: "pointer" } : undefined}
                 >
                   {slices.map((s, i) => (
                     <Cell key={s.name} fill={s.color} fillOpacity={active === null || active === i ? 1 : 0.3} style={{ transition: "fill-opacity 0.2s" }} />
@@ -350,11 +391,12 @@ export function CategoryBreakdown({
                 <li key={s.name}>
                   <button
                     type="button"
-                    className={cn("grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-2.5 gap-y-1 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-muted", active === i && "bg-muted")}
+                    className={cn("grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-2.5 gap-y-1 rounded-lg px-2 py-1.5 text-left transition-colors select-none hover:bg-muted", active === i && "bg-muted")}
                     onMouseEnter={() => setActive(i)}
                     onMouseLeave={() => setActive(null)}
                     onFocus={() => setActive(i)}
                     onBlur={() => setActive(null)}
+                    {...rowProps(i)}
                   >
                     <span className="chart-swatch size-2.5 rounded-full" style={{ background: s.color }} aria-hidden />
                     <span className="break-words leading-snug">{s.name}</span>
@@ -373,7 +415,8 @@ export function CategoryBreakdown({
       ) : (
         <ol className="grid gap-3" aria-label="Spending by category, largest first">
           {slices.map((s, i) => (
-            <li key={s.name} className="grid gap-1.5">
+            <li key={s.name}>
+              <button type="button" className="grid w-full gap-1.5 rounded-lg px-1 py-1 text-left transition-colors select-none hover:bg-muted/60" {...rowProps(i)}>
               <div className="flex items-baseline justify-between gap-3 text-sm">
                 <span className="flex min-w-0 items-center gap-2">
                   <span className="num w-5 shrink-0 text-xs text-muted-foreground">{i + 1}</span>
@@ -386,10 +429,12 @@ export function CategoryBreakdown({
               <div className="ml-7 h-2.5 overflow-hidden rounded-full bg-muted">
                 <div className="animate-grow-x h-full rounded-full" style={{ width: `${(s.value / max) * 100}%`, background: `linear-gradient(90deg, color-mix(in srgb, ${s.color} 65%, transparent), ${s.color})`, animationDelay: `${i * 70}ms` }} />
               </div>
+              </button>
             </li>
           ))}
         </ol>
       )}
+      {period && <CategoryTransactionsDialog drill={drill} onOpenChange={(o) => !o && setDrill(null)} />}
     </div>
   );
 }
