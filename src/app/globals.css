@@ -263,7 +263,11 @@
 }
 .animate-rise { animation: rise-in 0.55s cubic-bezier(0.22, 1, 0.36, 1) both; animation-delay: var(--delay, 0s); }
 .lift { transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.25s; }
-.lift:hover { transform: translateY(-2px); box-shadow: var(--glass-shadow-hover); }
+/* Only real hover (mouse / trackpad). On touch screens :hover sticks after a tap, which left a card shifted up
+   over the one above it. */
+@media (hover: hover) and (pointer: fine) {
+  .lift:hover { transform: translateY(-2px); box-shadow: var(--glass-shadow-hover); }
+}
 
 /* ---------- charts ---------- */
 .recharts-wrapper { -webkit-tap-highlight-color: transparent; }

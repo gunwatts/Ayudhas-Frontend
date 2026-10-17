@@ -1,11 +1,11 @@
 "use client";
 
-import { useId } from "react";
+import { useEffect, useId } from "react";
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useAccounts, useBudgets, useCategories, usePeople } from "@/lib/queries";
+import { useAccounts, useBudgets, useBusinesses, useCategories, usePeople, useProjects } from "@/lib/queries";
 import { cn } from "@/lib/utils";
 
 export const NONE = "__none__";
@@ -190,4 +190,59 @@ export function SimpleSelect({
       </SelectContent>
     </Select>
   );
+}
+
+/** Personal money or one of the user's (non-archived) businesses. "" = personal. */
+export function BusinessSelect({ allowPersonal = true, ...p }: SelectProps & { allowPersonal?: boolean }) {
+  const { data = [] } = useBusinesses();
+  const active = data.filter((b) => !b.is_archived || String(b.id) === p.value);
+  return (
+    <Select value={p.value || NONE} onValueChange={(v) => p.onChange(v === NONE ? "" : v)}>
+      <SelectTrigger id={p.id} aria-invalid={p.invalid} aria-describedby={p.describedBy} className="w-full">
+        <SelectValue placeholder="Choose" />
+      </SelectTrigger>
+      <SelectContent>
+        {allowPersonal && <SelectItem value={NONE}>Personal</SelectItem>}
+        {active.map((b) => (
+          <SelectItem key={b.id} value={String(b.id)}>
+            {b.name}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
+/** A project of the chosen business. "" = business-wide (not for one project). */
+export function ProjectSelect({ businessId, ...p }: SelectProps & { businessId: string }) {
+  const { data = [] } = useProjects(businessId ? Number(businessId) : null);
+  return (
+    <Select value={p.value || NONE} onValueChange={(v) => p.onChange(v === NONE ? "" : v)} disabled={!businessId}>
+      <SelectTrigger id={p.id} aria-invalid={p.invalid} aria-describedby={p.describedBy} className="w-full">
+        <SelectValue placeholder="Choose" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value={NONE}>Whole business (no project)</SelectItem>
+        {data.map((pr) => (
+          <SelectItem key={pr.id} value={String(pr.id)}>
+            {pr.name}
+            {pr.status === "completed" ? " (completed)" : ""}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
+/**
+ * For money that must pass through an account (lending and repayments): pre-select the first active account when
+ * nothing is chosen yet. Returns whether the user has any account, so forms can make the field required.
+ */
+export function useDefaultAccount(current: string, set: (id: string) => void, enabled = true) {
+  const { data } = useAccounts();
+  const first = data?.[0]?.id;
+  useEffect(() => {
+    if (enabled && !current && first) set(String(first));
+  }, [enabled, current, first, set]);
+  return { hasAccounts: !!data?.length, loaded: !!data };
 }

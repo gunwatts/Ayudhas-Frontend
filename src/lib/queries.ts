@@ -24,6 +24,13 @@ export type Flows = Schemas["Flows"];
 export type TrendPoint = Schemas["TrendPoint"];
 export type CategoryTotal = Schemas["CategoryTotal"];
 export type Note = Schemas["NoteOut"];
+export type Business = Schemas["BusinessOut"];
+export type Project = Schemas["ProjectOut"];
+export type BusinessReport = Schemas["BusinessReportOut"];
+export type BusinessOverview = Schemas["BusinessOverviewOut"];
+export type QuickTxn = Schemas["QuickTransactionOut"];
+export type InviteCode = Schemas["InviteCodeOut"];
+export type FinancialProfile = "salaried" | "freelancer" | "business";
 export type Page<T> = { items: T[]; total: number; page: number; page_size: number };
 
 export type TxnFilters = {
@@ -32,6 +39,10 @@ export type TxnFilters = {
   category_id?: number;
   counterparty_id?: number;
   event_id?: number;
+  scope?: "personal" | "business";
+  business_id?: number;
+  /** 0 = business-wide entries that belong to no project. */
+  project_id?: number;
   start?: string;
   end?: string;
   q?: string;
@@ -178,3 +189,35 @@ export const useRecurring = () =>
 
 export const useNotes = () =>
   useQuery({ queryKey: ["notes"], queryFn: ({ signal }) => api.get<Note[]>("/notes", {}, signal) });
+
+export const useBusinesses = (enabled = true) =>
+  useQuery({ queryKey: ["businesses"], queryFn: ({ signal }) => api.get<Business[]>("/businesses", {}, signal), enabled });
+
+export const useProjects = (businessId: number | null) =>
+  useQuery({
+    queryKey: ["projects", businessId],
+    queryFn: ({ signal }) => api.get<Project[]>(`/businesses/${businessId}/projects`, {}, signal),
+    enabled: !!businessId,
+  });
+
+export const useBusinessReport = (id: number | null, start: string, end: string) =>
+  useQuery({
+    queryKey: ["business-report", id, start, end],
+    queryFn: ({ signal }) => api.get<BusinessReport>(`/businesses/${id}/report`, { start, end }, signal),
+    enabled: !!id,
+    placeholderData: keepPreviousData,
+  });
+
+export const useBusinessOverview = (start: string, end: string, enabled = true, months = 12) =>
+  useQuery({
+    queryKey: ["business-overview", start, end, months],
+    queryFn: ({ signal }) => api.get<BusinessOverview>("/reports/business", { start, end, months }, signal),
+    placeholderData: keepPreviousData,
+    enabled,
+  });
+
+export const useQuickTransactions = () =>
+  useQuery({ queryKey: ["quick-transactions"], queryFn: ({ signal }) => api.get<QuickTxn[]>("/quick-transactions", {}, signal) });
+
+export const useInviteCodes = () =>
+  useQuery({ queryKey: ["invite-codes"], queryFn: ({ signal }) => api.get<InviteCode[]>("/admin/invite-codes", {}, signal) });

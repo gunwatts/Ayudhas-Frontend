@@ -1,13 +1,14 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Handshake, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
+import { APP_NAME, BrandMark } from "@/components/brand";
 import { Field } from "@/components/fields";
 import { GoogleButton, OrDivider, useAuthConfig } from "@/components/google-button";
 import { Button } from "@/components/ui/button";
@@ -39,9 +40,8 @@ function Shell({ children, description }: { children: React.ReactNode; descripti
     <main className="grid min-h-screen place-items-center bg-background p-4">
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
-          <span className="mx-auto mb-2 grid size-10 place-items-center rounded-xl bg-primary text-primary-foreground">
-            <Handshake className="size-5" aria-hidden />
-          </span>
+          <BrandMark size="lg" className="mx-auto mb-2" />
+          <p className="text-sm font-semibold tracking-tight text-muted-foreground">{APP_NAME}</p>
           <CardTitle className="text-xl">Create an account</CardTitle>
           <CardDescription>{description}</CardDescription>
         </CardHeader>

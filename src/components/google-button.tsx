@@ -92,7 +92,14 @@ export function GoogleButton({
   }, [clientId, text, choice]);
 
   if (failed) return <p className="text-center text-xs text-muted-foreground">Google sign-in couldn&apos;t load. Check your connection or use your password.</p>;
-  return <div ref={ref} className="flex min-h-10 w-full justify-center" data-testid="google-button" />;
+  // Google draws the button inside an iframe. On a dark page the browser paints an opaque white canvas behind any
+  // iframe that doesn't declare a colour scheme, which showed as a white frame around the dark button. Declaring
+  // "light" on the host keeps the iframe's canvas transparent, so only Google's own button is visible.
+  return (
+    <div className="flex w-full justify-center" style={{ colorScheme: "light" }}>
+      <div ref={ref} className="flex min-h-10 w-full max-w-[400px] justify-center overflow-hidden rounded-md [&_iframe]:!bg-transparent" data-testid="google-button" />
+    </div>
+  );
 }
 
 export function OrDivider() {

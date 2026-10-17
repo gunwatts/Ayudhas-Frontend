@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, Inbox, RefreshCw } from "lucide-react";
+import { AlertTriangle, Inbox, Info, RefreshCw } from "lucide-react";
 import { useState } from "react";
 
 import {
@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AnimatedMoney } from "@/components/motion";
 import { cn } from "@/lib/utils";
@@ -101,7 +102,9 @@ export function StatCard({
 }) {
   const a = ACCENTS[accent];
   return (
-    <Card className={cn("lift animate-rise relative gap-0 py-4", className)} style={{ ["--delay" as string]: `${delay}s` }}>
+    // overflow-hidden + isolate keep the blurred corner glow inside the card: unclipped, it spilled over the card
+    // edge and, with the glass backdrop blur, made mobile browsers repaint part of the card (it looked cut off).
+    <Card className={cn("lift animate-rise relative isolate gap-0 overflow-hidden py-4", className)} style={{ ["--delay" as string]: `${delay}s` }}>
       <div
         aria-hidden
         className="pointer-events-none absolute -top-10 -right-10 size-28 rounded-full opacity-25 blur-2xl"
@@ -293,5 +296,51 @@ export function Delta({ current, previous, upIsGood }: { current: string; previo
       <span aria-hidden>{up ? "▲" : "▼"}</span>
       {up ? "Up" : "Down"} {Math.abs(pct).toFixed(1)}% vs previous
     </span>
+  );
+}
+
+/**
+ * An (i) button that explains a figure. Tap or click toggles it (hover-only tooltips never open on phones);
+ * Escape, a tap outside or leaving the page closes it. With a mouse it also opens on hover and closes when the
+ * pointer leaves, unless it was clicked open. Focus stays on the button, so keyboard users can close it again.
+ */
+export function InfoTip({ label, children, className }: { label: string; children: React.ReactNode; className?: string }) {
+  const [open, setOpen] = useState(false);
+  const [pinned, setPinned] = useState(false);
+  const change = (o: boolean) => {
+    setOpen(o);
+    if (!o) setPinned(false);
+  };
+  return (
+    <Popover open={open} onOpenChange={change}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          aria-label={label}
+          className={cn("inline-flex size-6 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none", className)}
+          onClick={(e) => {
+            // Radix toggles on click; a click on a hover-opened tip pins it instead of closing it.
+            if (open && !pinned) {
+              e.preventDefault();
+              setPinned(true);
+            } else setPinned(!open);
+          }}
+          onPointerEnter={(e) => e.pointerType === "mouse" && !open && setOpen(true)}
+          onPointerLeave={(e) => e.pointerType === "mouse" && !pinned && setOpen(false)}
+        >
+          <Info className="size-3.5" aria-hidden />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        side="top"
+        align="center"
+        collisionPadding={12}
+        className="w-auto max-w-[min(20rem,calc(100vw-2rem))] text-xs leading-relaxed"
+        onOpenAutoFocus={(e) => e.preventDefault()}
+        onCloseAutoFocus={(e) => e.preventDefault()}
+      >
+        {children}
+      </PopoverContent>
+    </Popover>
   );
 }

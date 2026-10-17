@@ -1,8 +1,9 @@
 "use client";
 
-import { ArrowLeftRight, ExternalLink, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { ArrowLeftRight, ExternalLink, MoreHorizontal, Pencil, Trash2, Undo2 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
+import { toast } from "sonner";
 
 import { ConfirmAction, EmptyState } from "@/components/common";
 import { TransactionForm } from "@/components/transaction-form";
@@ -10,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { api } from "@/lib/api";
+import { api, newIdempotencyKey } from "@/lib/api";
 import { formatDate } from "@/lib/dates";
 import { formatMoney } from "@/lib/money";
 import { type Txn, useFinanceMutation } from "@/lib/queries";
@@ -42,6 +43,7 @@ function subtitle(t: Txn) {
     if (t.account) parts.push(t.account.name);
     else parts.push("No account");
   }
+  if (t.business) parts.push(t.project ? `${t.business.name} › ${t.project.name}` : t.business.name);
   if (t.event) parts.push(t.event.name);
   return parts.join(" · ");
 }
@@ -56,10 +58,59 @@ export function AmountCell({ t }: { t: Txn }) {
   );
 }
 
+/** Balance adjustments are never edited or deleted: they are undone with an equal, opposite adjustment, so the
+ *  history (and the audit log) keeps both entries. */
+function AdjustmentActions({ t }: { t: Txn }) {
+  const [confirming, setConfirming] = useState(false);
+  const [key] = useState(newIdempotencyKey);
+  const undo = useFinanceMutation(() => api.post(`/transactions/${t.id}/undo`, {}, key), { success: "Adjustment undone", silentError: true });
+  if (!t.can_undo)
+    return (
+      <span className="w-8 text-center text-[10px] text-muted-foreground" title={t.reverses_id ? "This entry undoes an earlier adjustment" : "Undone"}>
+        {t.reverses_id ? "Undo" : "Undone"}
+      </span>
+    );
+  const into = t.kind === "adjustment_in";
+  return (
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="icon-sm" aria-label={`Actions for ${title(t)}`}>
+            <MoreHorizontal />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onSelect={() => setConfirming(true)}>
+            <Undo2 /> Undo adjustment
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <ConfirmAction
+        open={confirming}
+        onOpenChange={setConfirming}
+        title="Undo this balance adjustment?"
+        description={`${t.description || t.kind_label} of ${formatMoney(t.amount)} on ${formatDate(t.date)} in ${t.account?.name ?? "the account"}. An opposite adjustment dated today will ${into ? "take" : "put"} ${formatMoney(t.amount)} ${into ? "out of" : "back into"} the account. Both entries stay in your history. This can't be undone again.`}
+        confirmLabel="Undo adjustment"
+        destructive={false}
+        onConfirm={async () => {
+          try {
+            await undo.mutateAsync(undefined);
+          } catch (e) {
+            // A refusal (e.g. the money has been spent since) has no form field to show it next to.
+            toast.error(e instanceof Error ? e.message : "Couldn't undo the adjustment");
+            throw e;
+          }
+        }}
+      />
+    </>
+  );
+}
+
 function RowActions({ t, onEdit }: { t: Txn; onEdit: () => void }) {
   const [confirming, setConfirming] = useState(false);
   const del = useFinanceMutation(() => api.delete(`/transactions/${t.id}`), { success: "Transaction deleted" });
   const href = workflowHref(t);
+  if (t.is_adjustment) return <AdjustmentActions t={t} />;
   if (t.is_workflow && href)
     return (
       <Button variant="ghost" size="icon-sm" asChild aria-label="Open related record">
@@ -126,6 +177,11 @@ export function TransactionsList({ items, emptyTitle = "No transactions yet", em
                           {t.kind_label}
                         </Badge>
                       )}
+                      {t.reversed_by_id && (
+                        <Badge variant="outline" className="shrink-0 text-[10px] font-normal">
+                          Undone
+                        </Badge>
+                      )}
                     </div>
                     <p className="truncate text-xs text-muted-foreground">
                       {compact && `${formatDate(t.date, "d MMM")} · `}
@@ -146,7 +202,7 @@ export function TransactionsList({ items, emptyTitle = "No transactions yet", em
           <DialogHeader>
             <DialogTitle>Edit transaction</DialogTitle>
           </DialogHeader>
-          {editing && <TransactionForm initial={editing} onDone={() => setEditing(null)} />}
+          {editing && !editing.is_adjustment && <TransactionForm initial={editing} onDone={() => setEditing(null)} />}
         </DialogContent>
       </Dialog>
     </>

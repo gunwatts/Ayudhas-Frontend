@@ -31,6 +31,8 @@ async function loadSlice(d: CategoryDrill, signal?: AbortSignal) {
   const only = d.categoryIds.length === 1 ? d.categoryIds[0] : undefined;
   const query = {
     kind: d.kind === "expense" ? ["expense", "refund"] : ["income"],
+    // The category totals are personal figures, so business entries are left out here too.
+    scope: "personal",
     start: d.start,
     end: d.end,
     sort: "-date",

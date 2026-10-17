@@ -4,12 +4,12 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { AlertTriangle, CheckCircle2, ChevronRight, HandCoins, Landmark, Plus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 
 import { EmptyState, ErrorState, LoadingRows, Money, PageHeader, ProgressBar, StatCard } from "@/components/common";
-import { AccountSelect, AmountInput, Field, PersonInput, SimpleSelect } from "@/components/fields";
+import { AccountSelect, AmountInput, Field, PersonInput, SimpleSelect, useDefaultAccount } from "@/components/fields";
 import { FormDialog, FormError } from "@/components/form-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -116,6 +116,10 @@ export function LoanForm({ direction, initial, onDone }: { direction: Direction;
   });
   const v = useWatch({ control: form.control }) as LoanValues;
   const preview = emiPreview(v);
+  // Money lent leaves one of your accounts, so the available balance goes down by it.
+  const setAccount = useCallback((id: string) => form.setValue("account_id", id), [form]);
+  const { hasAccounts } = useDefaultAccount(v.account_id ?? "", setAccount, isGiven && !initial);
+  const accountRequired = isGiven && !initial && hasAccounts;
   const save = useFinanceMutation(
     (values: LoanValues) => {
       const body = {
@@ -142,6 +146,7 @@ export function LoanForm({ direction, initial, onDone }: { direction: Direction;
     { success: initial ? "Loan updated" : "Loan recorded", silentError: true },
   );
   const onSubmit = form.handleSubmit(async (values) => {
+    if (accountRequired && !values.account_id) return form.setError("account_id", { message: "Choose the account the money was paid from" });
     setError(null);
     try {
       onDone(await save.mutateAsync(values));
@@ -211,9 +216,22 @@ export function LoanForm({ direction, initial, onDone }: { direction: Direction;
           </Field>
         )}
         {!initial && (
-          <Field label={isGiven ? "Paid from account" : "Received into account"} hint="Leave empty if the money didn't pass through your accounts (e.g. paid directly to a seller).">
-            {({ id, describedBy }) => (
-              <Controller control={form.control} name="account_id" render={({ field }) => <AccountSelect id={id} value={field.value} onChange={field.onChange} describedBy={describedBy} />} />
+          <Field
+            label={isGiven ? "Paid from account" : "Received into account"}
+            required={accountRequired}
+            error={e.account_id?.message}
+            hint={
+              isGiven
+                ? "The money leaves this account, so your available balance goes down. Repayments come back into an account."
+                : "Leave empty if the money didn't pass through your accounts (e.g. paid directly to a seller)."
+            }
+          >
+            {({ id, describedBy, invalid }) => (
+              <Controller
+                control={form.control}
+                name="account_id"
+                render={({ field }) => <AccountSelect id={id} value={field.value} onChange={field.onChange} describedBy={describedBy} invalid={invalid} allowNone={!accountRequired} />}
+              />
             )}
           </Field>
         )}

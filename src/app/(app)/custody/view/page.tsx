@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowDownLeft, ArrowLeft, ArrowUpRight, Loader2, Trash2 } from "lucide-react";
+import { ArrowDownLeft, ArrowLeft, ArrowUpRight, CheckCheck, Loader2, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
@@ -8,6 +8,7 @@ import { Suspense, useState } from "react";
 import { ConfirmAction, ErrorState, LoadingRows, StatCard } from "@/components/common";
 import { FormDialog } from "@/components/form-dialog";
 import { MoveForm } from "@/components/move-form";
+import { ReturnAllForm } from "@/components/return-all";
 import { AmountCell } from "@/components/transactions-list";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -21,7 +22,7 @@ import { type Txn, useCustody, useFinanceMutation } from "@/lib/queries";
 function Detail({ id }: { id: number }) {
   const q = useCustody(id);
   const router = useRouter();
-  const [dialog, setDialog] = useState<null | "deposit" | "return" | "delete">(null);
+  const [dialog, setDialog] = useState<null | "deposit" | "return" | "return-all" | "delete">(null);
   const [deleting, setDeleting] = useState<Txn | null>(null);
   const delTxn = useFinanceMutation((t: Txn) => api.delete(`/custody/${id}/transactions/${t.id}`), { success: "Entry deleted" });
   const delAll = useFinanceMutation(() => api.delete(`/custody/${id}`), { success: "Record deleted" });
@@ -49,12 +50,15 @@ function Detail({ id }: { id: number }) {
           </div>
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" onClick={() => setDialog("deposit")}><ArrowDownLeft /> Received more</Button>
-            <Button onClick={() => setDialog("return")} disabled={isZero(c.held)}><ArrowUpRight /> Return money</Button>
+            <Button onClick={() => setDialog("return-all")} disabled={isZero(c.held)} title={isZero(c.held) ? "Nothing left to return" : undefined}>
+              <CheckCheck /> Return completely
+            </Button>
+            <Button variant="outline" onClick={() => setDialog("return")} disabled={isZero(c.held)}><ArrowUpRight /> Return part</Button>
             <Button variant="ghost" size="icon" aria-label="Delete record" onClick={() => setDialog("delete")}><Trash2 /></Button>
           </div>
         </div>
       </div>
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 gap-4 min-[480px]:grid-cols-3">
         <StatCard label="Still holding" value={c.held} />
         <StatCard label="Received" value={c.received} />
         <StatCard label="Returned" value={c.returned} />
@@ -98,7 +102,10 @@ function Detail({ id }: { id: number }) {
       <FormDialog open={dialog === "deposit"} onOpenChange={(o) => !o && setDialog(null)} title={`Received more from ${c.counterparty.name}`}>
         <MoveForm endpoint={`/custody/${id}/deposits`} accountLabel="Held in account" submitLabel="Record" success="Deposit recorded" onDone={() => setDialog(null)} />
       </FormDialog>
-      <FormDialog open={dialog === "return"} onOpenChange={(o) => !o && setDialog(null)} title={`Return money to ${c.counterparty.name}`}>
+      <FormDialog open={dialog === "return-all"} onOpenChange={(o) => !o && setDialog(null)} title={`Return everything to ${c.counterparty.name}?`}>
+        <ReturnAllForm record={c} onDone={() => setDialog(null)} />
+      </FormDialog>
+      <FormDialog open={dialog === "return"} onOpenChange={(o) => !o && setDialog(null)} title={`Return part of the money to ${c.counterparty.name}`}>
         <MoveForm endpoint={`/custody/${id}/returns`} accountLabel="Paid from account" submitLabel="Record return" success="Return recorded" max={c.held} onDone={() => setDialog(null)} />
       </FormDialog>
       <ConfirmAction

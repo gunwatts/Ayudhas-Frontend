@@ -1,55 +1,74 @@
 "use client";
 
-import { Coins, Info, PiggyBank, ShoppingBag, Sparkles } from "lucide-react";
+import { Coins, PiggyBank, ShoppingBag, Sparkles, TrendingUp } from "lucide-react";
 import { useState } from "react";
 
-import { CategoryBreakdown, SalaryExpensesChart } from "@/components/charts";
-import { Delta, ErrorState, Money, PageHeader, StatCard } from "@/components/common";
+import { CategoryBreakdown, CompareChart, SalaryExpensesChart } from "@/components/charts";
+import { Delta, ErrorState, InfoTip, Money, PageHeader, StatCard } from "@/components/common";
 import { AnimatedMoney } from "@/components/motion";
 import { PeriodPicker, usePeriod } from "@/components/period-picker";
 import { TransactionsList } from "@/components/transactions-list";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { formatDate, formatMonth } from "@/lib/dates";
-import { formatMoney } from "@/lib/money";
-import { useCategoryTotals, useCompare, useFlows, useTransactions, useTrend } from "@/lib/queries";
+import { formatDate, formatMonth, today } from "@/lib/dates";
+import { formatMoney, isZero } from "@/lib/money";
+import { type FinancialProfile, useBusinesses, useBusinessOverview, useBusinessReport, useCategoryTotals, useCompare, useFlows, useTransactions, useTrend } from "@/lib/queries";
+import { useSession } from "@/lib/session";
 import { cn } from "@/lib/utils";
 
 const SOURCE_SHORT: Record<string, string> = { income: "Recorded income", set: "Set for the month", none: "Not recorded" };
 
-type Kpi = { label: string; key: "salary" | "expenses" | "remaining" | "other_income"; upIsGood: boolean; icon: React.ComponentType<{ className?: string }>; color: string };
-const KPIS: Kpi[] = [
+type Kpi = { label: string; key: "salary" | "expenses" | "remaining" | "other_income" | "income" | "net_cash_flow"; upIsGood: boolean; icon: React.ComponentType<{ className?: string }>; color: string };
+const SALARY_KPIS: Kpi[] = [
   { label: "Salary", key: "salary", upIsGood: true, icon: Sparkles, color: "salary" },
   { label: "Spent", key: "expenses", upIsGood: false, icon: ShoppingBag, color: "spend" },
   { label: "Remaining", key: "remaining", upIsGood: true, icon: PiggyBank, color: "remain" },
   { label: "Other income", key: "other_income", upIsGood: true, icon: Coins, color: "chart-4" },
 ];
+// Freelancers and business owners: no salary needed. (Personal figures only; business figures are on the Business pages.)
+const INCOME_KPIS: Kpi[] = [
+  { label: "Income", key: "income", upIsGood: true, icon: TrendingUp, color: "salary" },
+  { label: "Spent", key: "expenses", upIsGood: false, icon: ShoppingBag, color: "spend" },
+  { label: "Kept", key: "net_cash_flow", upIsGood: true, icon: PiggyBank, color: "remain" },
+];
 
-function SalaryNote() {
+function SalaryNote({ salaried }: { salaried: boolean }) {
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <button type="button" className="text-muted-foreground hover:text-foreground" aria-label="How salary is counted">
-          <Info className="size-3.5" />
-        </button>
-      </TooltipTrigger>
-      <TooltipContent className="max-w-xs">
-        Salary is monthly: income recorded under the Salary category, or else the salary set for the month on the Budgets page. A period counts the
-        months that start inside it, the same rule the Overview uses. Remaining = salary − spent.
-      </TooltipContent>
-    </Tooltip>
+    <InfoTip label="How these figures are counted">
+      {salaried
+        ? "Salary is monthly: income recorded under the Salary category, or else the salary set for the month on the Income page. A period counts the months that start inside it, the same rule the Overview uses. Remaining = salary − spent."
+        : "Personal income and spending only. Kept = income − spent. Business income and costs are reported on the Business pages."}
+    </InfoTip>
   );
 }
 
+type ChartKind = "income" | "salary" | "business" | "projects";
+
 export default function ReportsPage() {
+  const { session } = useSession();
+  const profile = (session?.financial_profile ?? "salaried") as FinancialProfile;
+  const salaried = profile === "salaried";
+  const KPIS = salaried ? SALARY_KPIS : INCOME_KPIS;
   const [comparePeriod, setComparePeriod] = useState<"month" | "quarter" | "year">("month");
   const [months, setMonths] = useState(12);
   const [period, setPeriod] = usePeriod("this_year");
   const compare = useCompare(comparePeriod);
   const trend = useTrend(months);
+  const businesses = useBusinesses();
+  const hasBusiness = !!businesses.data?.length;
+  const hasSalary = !!trend.data?.some((t) => !isZero(t.salary));
+  const [chartChoice, setChartChoice] = useState<ChartKind | null>(null);
+  const preferred: ChartKind = profile === "business" && hasBusiness ? "business" : salaried && hasSalary ? "salary" : "income";
+  // A choice that no longer applies (no salary data, no business) falls back to the profile's default.
+  const chart: ChartKind =
+    chartChoice && !(chartChoice === "salary" && !hasSalary) && !((chartChoice === "business" || chartChoice === "projects") && !hasBusiness) ? chartChoice : preferred;
+  const [projectBusiness, setProjectBusiness] = useState<string>("");
+  const businessForProjects = projectBusiness || (businesses.data?.[0] ? String(businesses.data[0].id) : "");
+  const bizTrend = useBusinessOverview(`${today().slice(0, 4)}-01-01`, today(), chart === "business", months);
+  const projectReport = useBusinessReport(chart === "projects" && businessForProjects ? Number(businessForProjects) : null, period.start, period.end);
   const flows = useFlows(period.start, period.end);
   const expenses = useCategoryTotals(period.start, period.end, "expense");
   const income = useCategoryTotals(period.start, period.end, "income");
@@ -57,12 +76,15 @@ export default function ReportsPage() {
 
   return (
     <div className="grid grid-cols-1 gap-6">
-      <PageHeader title="Reports" description="Salary, spending and what's left over time, calculated from your records." />
+      <PageHeader
+        title="Reports"
+        description={salaried ? "Salary, spending and what's left over time, calculated from your records." : "Income, spending and what you kept over time, calculated from your records."}
+      />
 
       <Card className="animate-rise">
         <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3">
           <div className="grid gap-1">
-            <CardTitle className="flex items-center gap-1.5 text-base">This {comparePeriod} vs last <SalaryNote /></CardTitle>
+            <CardTitle className="flex items-center gap-1.5 text-base">This {comparePeriod} vs last <SalaryNote salaried={salaried} /></CardTitle>
             {compare.data && (
               <CardDescription>
                 {formatDate(compare.data.current_range.start)} – {formatDate(compare.data.current_range.end)} compared with {formatDate(compare.data.previous_range.start)} – {formatDate(compare.data.previous_range.end)}
@@ -83,10 +105,10 @@ export default function ReportsPage() {
           ) : !compare.data ? (
             <Skeleton className="h-28 w-full" />
           ) : (
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-[1.4fr_1fr_1fr_1fr]">
+            <div className={cn("grid gap-4 sm:grid-cols-2", KPIS.length === 4 ? "xl:grid-cols-[1.4fr_1fr_1fr_1fr]" : "xl:grid-cols-3")}>
               {KPIS.map((k, i) => {
                 const Icon = k.icon;
-                const primary = k.key === "salary";
+                const primary = k.key === "salary" || k.key === "income";
                 return (
                   <div
                     key={k.key}
@@ -105,7 +127,7 @@ export default function ReportsPage() {
                       </span>
                     </p>
                     <p className={cn("relative font-semibold tracking-tight", primary ? "text-3xl text-salary" : "text-2xl")}>
-                      <AnimatedMoney value={compare.data.current[k.key]} tone={k.key === "remaining" ? "auto" : "neutral"} />
+                      <AnimatedMoney value={compare.data.current[k.key]} tone={k.key === "remaining" || k.key === "net_cash_flow" ? "auto" : "neutral"} />
                     </p>
                     <p className="relative text-xs text-muted-foreground">Previous: {formatMoney(compare.data.previous[k.key])}</p>
                     <span className="relative"><Delta current={compare.data.current[k.key]} previous={compare.data.previous[k.key]} upIsGood={k.upIsGood} /></span>
@@ -120,20 +142,85 @@ export default function ReportsPage() {
       <Card className="animate-rise" style={{ ["--delay" as string]: "0.06s" }}>
         <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3">
           <div className="grid gap-1">
-            <CardTitle className="text-base">Monthly salary vs expenses</CardTitle>
-            <CardDescription>Salary received, money spent and what remained, month by month.</CardDescription>
+            <CardTitle className="text-base">
+              {{ income: "Income vs expenses", salary: "Salary vs expenses", business: "Business income vs costs", projects: "Project-wise income and costs" }[chart]}
+            </CardTitle>
+            <CardDescription>
+              {
+                {
+                  income: "Personal income received, money spent and what you kept, month by month.",
+                  salary: "Salary received, money spent and what remained, month by month.",
+                  business: "All your businesses: income, costs and profit, month by month.",
+                  projects: "Each project's income, costs and profit in the period chosen under Breakdown.",
+                }[chart]
+              }
+            </CardDescription>
           </div>
-          <Tabs value={String(months)} onValueChange={(v) => setMonths(Number(v))}>
-            <TabsList>
-              <TabsTrigger value="6">6 months</TabsTrigger>
-              <TabsTrigger value="12">12 months</TabsTrigger>
-              <TabsTrigger value="24">24 months</TabsTrigger>
-            </TabsList>
-          </Tabs>
+          <div className="flex flex-wrap items-center gap-2">
+            <Select value={chart} onValueChange={(v) => setChartChoice(v as ChartKind)}>
+              <SelectTrigger className="w-52" aria-label="Report">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="income">Income vs expenses</SelectItem>
+                <SelectItem value="salary" disabled={!hasSalary}>
+                  Salary vs expenses{hasSalary ? "" : " (no salary yet)"}
+                </SelectItem>
+                {hasBusiness && <SelectItem value="business">Business income vs costs</SelectItem>}
+                {hasBusiness && <SelectItem value="projects">Project-wise</SelectItem>}
+              </SelectContent>
+            </Select>
+            {chart === "projects" ? (
+              <Select value={businessForProjects} onValueChange={setProjectBusiness}>
+                <SelectTrigger className="w-44" aria-label="Business">
+                  <SelectValue placeholder="Business" />
+                </SelectTrigger>
+                <SelectContent>
+                  {businesses.data?.map((b) => (
+                    <SelectItem key={b.id} value={String(b.id)}>{b.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <Tabs value={String(months)} onValueChange={(v) => setMonths(Number(v))}>
+                <TabsList>
+                  <TabsTrigger value="6">6 mo</TabsTrigger>
+                  <TabsTrigger value="12">12 mo</TabsTrigger>
+                  <TabsTrigger value="24">24 mo</TabsTrigger>
+                </TabsList>
+              </Tabs>
+            )}
+          </div>
         </CardHeader>
         <CardContent className="grid gap-4">
-          {trend.data ? <SalaryExpensesChart key={months} data={trend.data} height={300} /> : <Skeleton className="h-72 w-full" />}
-          {trend.data && (
+          {chart === "salary" ? (
+            trend.data ? <SalaryExpensesChart key={months} data={trend.data} height={300} /> : <Skeleton className="h-72 w-full" />
+          ) : chart === "income" ? (
+            trend.data ? (
+              <CompareChart key={months} rows={trend.data.map((t) => ({ key: t.month, label: t.month, a: t.income, b: t.expenses }))} aLabel="Income" bLabel="Spent" netLabel="Kept" height={300} emptyLabel="No income or spending in these months" />
+            ) : (
+              <Skeleton className="h-72 w-full" />
+            )
+          ) : chart === "business" ? (
+            bizTrend.data ? (
+              <CompareChart key={months} rows={bizTrend.data.trend.map((t) => ({ key: t.month, label: t.month, a: t.income, b: t.expenses }))} aLabel="Income" bLabel="Costs" netLabel="Profit" height={300} emptyLabel="No business income or costs in these months" />
+            ) : (
+              <Skeleton className="h-72 w-full" />
+            )
+          ) : projectReport.data ? (
+            <CompareChart
+              monthly={false}
+              rows={projectReport.data.projects.filter((p) => p.has_data).map((p) => ({ key: String(p.id), label: p.name, a: p.income, b: p.expenses }))}
+              aLabel="Income"
+              bLabel="Costs"
+              netLabel="Profit"
+              height={300}
+              emptyLabel="No project income or costs in this period. Link expenses to a project when you record them."
+            />
+          ) : (
+            <Skeleton className="h-72 w-full" />
+          )}
+          {trend.data && (chart === "salary" || chart === "income") && (
             <details className="text-sm">
               <summary className="cursor-pointer text-muted-foreground hover:text-foreground">Show as table</summary>
               <div className="mt-2 overflow-x-auto">
@@ -172,10 +259,21 @@ export default function ReportsPage() {
         <PeriodPicker value={period} onChange={setPeriod} />
       </div>
       <section className="grid grid-cols-1 gap-4 min-[420px]:grid-cols-2 lg:grid-cols-4" aria-label="Totals for the selected period">
-        <StatCard label="Salary" value={flows.data?.salary} icon={Sparkles} accent="salary" loading={!flows.data} hint="Months that start in this period" />
-        <StatCard label="Spent" value={flows.data?.expenses} icon={ShoppingBag} accent="spend" loading={!flows.data} hint="Including event spending" delay={0.05} />
-        <StatCard label="Remaining" value={flows.data?.remaining} tone="auto" icon={PiggyBank} accent="remain" loading={!flows.data} hint="Salary − spent" delay={0.1} />
-        <StatCard label="Other income" value={flows.data?.other_income} icon={Coins} accent="gold" loading={!flows.data} hint="Income that is not salary" delay={0.15} />
+        {salaried ? (
+          <>
+            <StatCard label="Salary" value={flows.data?.salary} icon={Sparkles} accent="salary" loading={!flows.data} hint="Months that start in this period" />
+            <StatCard label="Spent" value={flows.data?.expenses} icon={ShoppingBag} accent="spend" loading={!flows.data} hint="Including event spending" delay={0.05} />
+            <StatCard label="Remaining" value={flows.data?.remaining} tone="auto" icon={PiggyBank} accent="remain" loading={!flows.data} hint="Salary − spent" delay={0.1} />
+            <StatCard label="Other income" value={flows.data?.other_income} icon={Coins} accent="gold" loading={!flows.data} hint="Income that is not salary" delay={0.15} />
+          </>
+        ) : (
+          <>
+            <StatCard label="Income" value={flows.data?.income} icon={TrendingUp} accent="salary" loading={!flows.data} hint="Personal income" />
+            <StatCard label="Spent" value={flows.data?.expenses} icon={ShoppingBag} accent="spend" loading={!flows.data} hint="Including event spending" delay={0.05} />
+            <StatCard label="Kept" value={flows.data?.net_cash_flow} tone="auto" icon={PiggyBank} accent="remain" loading={!flows.data} hint="Income − spent" delay={0.1} />
+            <StatCard label="Salary" value={flows.data?.salary} icon={Sparkles} accent="gold" loading={!flows.data} hint="If you record any" delay={0.15} />
+          </>
+        )}
       </section>
       <div className="grid gap-4 lg:grid-cols-5">
         <Card className="lg:col-span-3">

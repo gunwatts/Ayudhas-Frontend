@@ -8,11 +8,13 @@ import { PageHeader } from "@/components/common";
 import { Field } from "@/components/fields";
 import { FormError } from "@/components/form-dialog";
 import { GoogleButton, useAuthConfig } from "@/components/google-button";
+import { ProfileOptions, useSetProfile } from "@/components/onboarding";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { api, ApiError, applyFieldErrors, API_BASE_URL, setCsrfToken, type Schemas } from "@/lib/api";
+import type { FinancialProfile } from "@/lib/queries";
 import { useSession } from "@/lib/session";
 import { type ThemeChoice, useTheme } from "@/lib/theme";
 
@@ -57,6 +59,28 @@ function PasswordCard() {
           <FormError message={error} />
           <div><Button type="submit" disabled={form.formState.isSubmitting}>{form.formState.isSubmitting ? "Saving…" : hasPassword ? "Change password" : "Set password"}</Button></div>
         </form>
+      </CardContent>
+    </Card>
+  );
+}
+
+function ProfileCard() {
+  const { session } = useSession();
+  const { save, saving } = useSetProfile();
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">How you earn</CardTitle>
+        <CardDescription>Shapes your overview and the cards you see. Changing it never changes or hides your records.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <ProfileOptions
+          value={(session?.financial_profile as FinancialProfile | null | undefined) ?? null}
+          saving={saving}
+          onChoose={async (v) => {
+            if (await save(v)) toast.success("Saved. Your overview now matches.");
+          }}
+        />
       </CardContent>
     </Card>
   );
@@ -130,6 +154,7 @@ export default function SettingsPage() {
     <>
       <PageHeader title="Settings" description={`Signed in as ${user?.username}`} />
       <div className="grid gap-6">
+        <ProfileCard />
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Appearance</CardTitle>
@@ -141,7 +166,9 @@ export default function SettingsPage() {
             </Tabs>
           </CardContent>
         </Card>
-        <PasswordCard />
+        <div id="password" className="scroll-mt-20">
+          <PasswordCard />
+        </div>
         <GoogleCard />
         <Card>
           <CardHeader>

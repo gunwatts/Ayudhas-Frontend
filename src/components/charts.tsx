@@ -249,6 +249,98 @@ export function SalaryExpensesChart({ data, height = 280 }: { data: TrendPoint[]
 
 type Slice = { name: string; value: number; raw: string; color: string; ids: (number | null)[] };
 
+export type CompareRow = { key: string; label: string; a: string; b: string };
+
+/**
+ * Two figures side by side per month (or per project) with the difference as a line: income vs expenses,
+ * salary vs expenses, business income vs costs. `rows` are in display order; amounts are API strings.
+ */
+export function CompareChart({
+  rows,
+  aLabel,
+  bLabel,
+  netLabel,
+  aColor = "var(--salary)",
+  bColor = "var(--spend)",
+  height = 280,
+  monthly = true,
+  emptyLabel = "Nothing recorded for this view yet",
+}: {
+  rows: CompareRow[];
+  aLabel: string;
+  bLabel: string;
+  netLabel: string;
+  aColor?: string;
+  bColor?: string;
+  height?: number;
+  /** Rows are months ("2026-10"): ticks are shortened and the tooltip shows the month name. */
+  monthly?: boolean;
+  emptyLabel?: string;
+}) {
+  const data = useMemo(
+    () =>
+      rows.map((r, i) => {
+        const a = toNumber(r.a);
+        const b = toNumber(r.b);
+        return { ...r, tick: monthly ? monthTick(r.key, i) : r.label, av: a, bv: b, net: a - b };
+      }),
+    [rows, monthly],
+  );
+  const empty = data.every((d) => !d.av && !d.bv);
+  if (!data.length || empty) return <p className="py-10 text-center text-sm text-muted-foreground">{emptyLabel}</p>;
+  const hasNegative = data.some((d) => d.net < 0);
+  const totalA = data.reduce((t, d) => t + d.av, 0);
+  const totalB = data.reduce((t, d) => t + d.bv, 0);
+  return (
+    <figure className="grid min-w-0 grid-cols-1 gap-3">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+        {[
+          { label: aLabel, color: aColor, value: totalA },
+          { label: bLabel, color: bColor, value: totalB },
+          { label: netLabel, color: "var(--remain)", value: totalA - totalB, line: true },
+        ].map((s) => (
+          <span key={s.label} className="inline-flex items-center gap-1.5">
+            <span className={cn("chart-swatch", s.line ? "h-0.5 w-3 rounded-full" : "size-2.5 rounded-full")} style={{ background: s.color }} aria-hidden />
+            <span className="text-muted-foreground">{s.label}</span>
+            <span className="num font-medium">{formatMoney(s.value)}</span>
+          </span>
+        ))}
+      </div>
+      <div className="min-w-0" style={{ height }} role="img" aria-label={`${aLabel} and ${bLabel} compared, with ${netLabel.toLowerCase()} as a line.`}>
+        <ResponsiveContainer width="100%" height="100%">
+          <ComposedChart data={data} barGap={3} barCategoryGap="22%" margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+            <CartesianGrid vertical={false} stroke="var(--grid)" />
+            <XAxis dataKey="tick" tick={axisTick} axisLine={{ stroke: "var(--grid)" }} tickLine={false} interval="preserveStartEnd" minTickGap={8} tickMargin={8} />
+            <YAxis tickFormatter={(v) => formatMoney(v, { compact: true })} tick={axisTick} axisLine={false} tickLine={false} width={60} domain={[(min: number) => Math.min(0, min), "auto"]} />
+            {hasNegative && <ReferenceLine y={0} stroke="var(--axis)" strokeDasharray="4 4" />}
+            <Tooltip
+              cursor={<CursorBand />}
+              wrapperStyle={{ outline: "none", zIndex: 10 }}
+              content={({ active, payload }) => {
+                const p = payload?.[0]?.payload as (typeof data)[number] | undefined;
+                if (!active || !p) return null;
+                return (
+                  <TooltipBox
+                    title={monthly ? formatMonth(p.key) : p.label}
+                    rows={[
+                      { label: aLabel, value: formatMoney(p.a), color: aColor },
+                      { label: bLabel, value: formatMoney(p.b), color: bColor },
+                      { label: netLabel, value: formatMoney(p.net), color: "var(--remain)", strong: true },
+                    ]}
+                  />
+                );
+              }}
+            />
+            <Bar dataKey="av" name={aLabel} fill={aColor} fillOpacity={0.85} radius={[6, 6, 0, 0]} maxBarSize={22} animationDuration={800} animationEasing={EASE} />
+            <Bar dataKey="bv" name={bLabel} fill={bColor} fillOpacity={0.85} radius={[6, 6, 0, 0]} maxBarSize={22} animationDuration={800} animationBegin={100} animationEasing={EASE} />
+            <Line type="monotone" dataKey="net" name={netLabel} stroke="var(--remain)" strokeWidth={2.5} dot={{ r: 3, fill: "var(--card)", stroke: "var(--remain)", strokeWidth: 2 }} animationDuration={1000} animationBegin={200} animationEasing={EASE} />
+          </ComposedChart>
+        </ResponsiveContainer>
+      </div>
+    </figure>
+  );
+}
+
 function buildSlices(data: CategoryTotal[], max = 7): Slice[] {
   const positive = data.filter((d) => toNumber(d.total) > 0).sort((a, b) => toNumber(b.total) - toNumber(a.total));
   const top = positive.slice(0, max);

@@ -1,7 +1,7 @@
 {
  "openapi": "3.1.0",
  "info": {
-  "title": "Finance Tracker API",
+  "title": "Finance Ayudhas API",
   "version": "1.0.0"
  },
  "paths": {
@@ -280,6 +280,48 @@
       "application/json": {
        "schema": {
         "$ref": "#/components/schemas/PasswordChangeIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/SessionOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/auth/profile": {
+   "put": {
+    "tags": [
+     "auth"
+    ],
+    "summary": "Set Profile",
+    "description": "Choose how you earn (salaried, freelancer or business owner). Shapes the dashboard; no data changes.",
+    "operationId": "set_profile_api_v1_auth_profile_put",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ProfileIn"
        }
       }
      },
@@ -1462,6 +1504,60 @@
       }
      },
      {
+      "name": "scope",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "enum": [
+          "personal",
+          "business"
+         ],
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Scope"
+      }
+     },
+     {
+      "name": "business_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Business Id"
+      }
+     },
+     {
+      "name": "project_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "0 = business-wide entries with no project",
+       "title": "Project Id"
+      },
+      "description": "0 = business-wide entries with no project"
+     },
+     {
       "name": "sort",
       "in": "query",
       "required": false,
@@ -1644,6 +1740,58 @@
        ],
        "title": "Kind"
       }
+     },
+     {
+      "name": "scope",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "enum": [
+          "personal",
+          "business"
+         ],
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Scope"
+      }
+     },
+     {
+      "name": "business_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Business Id"
+      }
+     },
+     {
+      "name": "project_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Project Id"
+      }
      }
     ],
     "responses": {
@@ -1774,6 +1922,66 @@
     "responses": {
      "204": {
       "description": "Successful Response"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/transactions/{txn_id}/undo": {
+   "post": {
+    "tags": [
+     "transactions"
+    ],
+    "summary": "Undo Adjustment",
+    "description": "Undo a balance adjustment by recording the opposite adjustment today. The original is kept.",
+    "operationId": "undo_adjustment_api_v1_transactions__txn_id__undo_post",
+    "parameters": [
+     {
+      "name": "txn_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "Txn Id"
+      }
+     },
+     {
+      "name": "idempotency-key",
+      "in": "header",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string",
+         "maxLength": 64
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Idempotency-Key"
+      }
+     }
+    ],
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/TransactionOut"
+        }
+       }
+      }
      },
      "422": {
       "description": "Validation Error",
@@ -3032,6 +3240,66 @@
       }
      }
     }
+   },
+   "patch": {
+    "tags": [
+     "loans"
+    ],
+    "summary": "Set Loan Transaction Account",
+    "description": "Set the account a loan entry went through, e.g. for money lent that was recorded without an account.",
+    "operationId": "set_loan_transaction_account_api_v1_loans__loan_id__transactions__txn_id__patch",
+    "parameters": [
+     {
+      "name": "loan_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "Loan Id"
+      }
+     },
+     {
+      "name": "txn_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "Txn Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/SetAccountIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/TransactionOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
    }
   },
   "/api/v1/custody": {
@@ -3390,6 +3658,76 @@
       "application/json": {
        "schema": {
         "$ref": "#/components/schemas/CustodyMoveIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/TransactionOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/custody/{custody_id}/return-all": {
+   "post": {
+    "tags": [
+     "money held for others"
+    ],
+    "summary": "Return All",
+    "description": "Return the whole outstanding amount in one entry; the record is then marked fully returned.",
+    "operationId": "return_all_api_v1_custody__custody_id__return_all_post",
+    "parameters": [
+     {
+      "name": "custody_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "Custody Id"
+      }
+     },
+     {
+      "name": "Idempotency-Key",
+      "in": "header",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string",
+         "maxLength": 64
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Idempotency-Key"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/CustodyReturnAllIn"
        }
       }
      }
@@ -4291,6 +4629,937 @@
      }
     }
    }
+  },
+  "/api/v1/businesses": {
+   "get": {
+    "tags": [
+     "businesses"
+    ],
+    "summary": "List Businesses",
+    "operationId": "list_businesses_api_v1_businesses_get",
+    "parameters": [
+     {
+      "name": "include_archived",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "boolean",
+       "default": true,
+       "title": "Include Archived"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/BusinessOut"
+         },
+         "title": "Response List Businesses Api V1 Businesses Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "post": {
+    "tags": [
+     "businesses"
+    ],
+    "summary": "Create Business",
+    "operationId": "create_business_api_v1_businesses_post",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/BusinessIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/BusinessOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/businesses/{business_id}": {
+   "get": {
+    "tags": [
+     "businesses"
+    ],
+    "summary": "Get Business",
+    "operationId": "get_business_api_v1_businesses__business_id__get",
+    "parameters": [
+     {
+      "name": "business_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "Business Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/BusinessOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "patch": {
+    "tags": [
+     "businesses"
+    ],
+    "summary": "Update Business",
+    "operationId": "update_business_api_v1_businesses__business_id__patch",
+    "parameters": [
+     {
+      "name": "business_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "Business Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/BusinessPatch"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/BusinessOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "delete": {
+    "tags": [
+     "businesses"
+    ],
+    "summary": "Delete Business",
+    "description": "Only a business with no transactions can be deleted; otherwise archive it to keep its history.",
+    "operationId": "delete_business_api_v1_businesses__business_id__delete",
+    "parameters": [
+     {
+      "name": "business_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "Business Id"
+      }
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/businesses/{business_id}/projects": {
+   "get": {
+    "tags": [
+     "businesses"
+    ],
+    "summary": "List Projects",
+    "operationId": "list_projects_api_v1_businesses__business_id__projects_get",
+    "parameters": [
+     {
+      "name": "business_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "Business Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/ProjectOut"
+         },
+         "title": "Response List Projects Api V1 Businesses  Business Id  Projects Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "post": {
+    "tags": [
+     "businesses"
+    ],
+    "summary": "Create Project",
+    "operationId": "create_project_api_v1_businesses__business_id__projects_post",
+    "parameters": [
+     {
+      "name": "business_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "Business Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ProjectIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ProjectOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/projects/{project_id}": {
+   "patch": {
+    "tags": [
+     "businesses"
+    ],
+    "summary": "Update Project",
+    "operationId": "update_project_api_v1_projects__project_id__patch",
+    "parameters": [
+     {
+      "name": "project_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "Project Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ProjectPatch"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ProjectOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "delete": {
+    "tags": [
+     "businesses"
+    ],
+    "summary": "Delete Project",
+    "operationId": "delete_project_api_v1_projects__project_id__delete",
+    "parameters": [
+     {
+      "name": "project_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "Project Id"
+      }
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/businesses/{business_id}/report": {
+   "get": {
+    "tags": [
+     "businesses"
+    ],
+    "summary": "Business Report",
+    "operationId": "business_report_api_v1_businesses__business_id__report_get",
+    "parameters": [
+     {
+      "name": "business_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "Business Id"
+      }
+     },
+     {
+      "name": "start",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string",
+         "format": "date"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Start"
+      }
+     },
+     {
+      "name": "end",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string",
+         "format": "date"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "End"
+      }
+     },
+     {
+      "name": "months",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "maximum": 36,
+       "minimum": 1,
+       "default": 12,
+       "title": "Months"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/BusinessReportOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/reports/business": {
+   "get": {
+    "tags": [
+     "businesses"
+    ],
+    "summary": "Business Overview",
+    "description": "All businesses together: totals for the period, one row per business, and a monthly trend.",
+    "operationId": "business_overview_api_v1_reports_business_get",
+    "parameters": [
+     {
+      "name": "start",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string",
+         "format": "date"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Start"
+      }
+     },
+     {
+      "name": "end",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string",
+         "format": "date"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "End"
+      }
+     },
+     {
+      "name": "months",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "maximum": 36,
+       "minimum": 1,
+       "default": 12,
+       "title": "Months"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/BusinessOverviewOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/quick-transactions": {
+   "get": {
+    "tags": [
+     "quick transactions"
+    ],
+    "summary": "List Quick",
+    "operationId": "list_quick_api_v1_quick_transactions_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/QuickTransactionOut"
+         },
+         "type": "array",
+         "title": "Response List Quick Api V1 Quick Transactions Get"
+        }
+       }
+      }
+     }
+    }
+   },
+   "post": {
+    "tags": [
+     "quick transactions"
+    ],
+    "summary": "Create Quick",
+    "operationId": "create_quick_api_v1_quick_transactions_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/QuickTransactionIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/QuickTransactionOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/quick-transactions/{quick_id}": {
+   "patch": {
+    "tags": [
+     "quick transactions"
+    ],
+    "summary": "Update Quick",
+    "operationId": "update_quick_api_v1_quick_transactions__quick_id__patch",
+    "parameters": [
+     {
+      "name": "quick_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "Quick Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/QuickTransactionPatch"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/QuickTransactionOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "delete": {
+    "tags": [
+     "quick transactions"
+    ],
+    "summary": "Delete Quick",
+    "description": "Deletes the shortcut only; transactions it recorded stay.",
+    "operationId": "delete_quick_api_v1_quick_transactions__quick_id__delete",
+    "parameters": [
+     {
+      "name": "quick_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "Quick Id"
+      }
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/quick-transactions/{quick_id}/run": {
+   "post": {
+    "tags": [
+     "quick transactions"
+    ],
+    "summary": "Run Quick",
+    "description": "Record the shortcut as a normal transaction, dated today in the app's time zone unless a date is given.",
+    "operationId": "run_quick_api_v1_quick_transactions__quick_id__run_post",
+    "parameters": [
+     {
+      "name": "quick_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "Quick Id"
+      }
+     },
+     {
+      "name": "Idempotency-Key",
+      "in": "header",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string",
+         "maxLength": 64
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Idempotency-Key"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/QuickRunIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/TransactionOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/invite-codes": {
+   "get": {
+    "tags": [
+     "admin"
+    ],
+    "summary": "List Invite Codes",
+    "operationId": "list_invite_codes_api_v1_admin_invite_codes_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/InviteCodeOut"
+         },
+         "type": "array",
+         "title": "Response List Invite Codes Api V1 Admin Invite Codes Get"
+        }
+       }
+      }
+     }
+    }
+   },
+   "post": {
+    "tags": [
+     "admin"
+    ],
+    "summary": "Create Invite Code",
+    "operationId": "create_invite_code_api_v1_admin_invite_codes_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/InviteCodeIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/InviteCodeOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/invite-codes/{invite_id}": {
+   "patch": {
+    "tags": [
+     "admin"
+    ],
+    "summary": "Update Invite Code",
+    "operationId": "update_invite_code_api_v1_admin_invite_codes__invite_id__patch",
+    "parameters": [
+     {
+      "name": "invite_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "Invite Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/InviteCodePatch"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/InviteCodeOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "delete": {
+    "tags": [
+     "admin"
+    ],
+    "summary": "Delete Invite Code",
+    "description": "Unused codes are deleted; a code that has created accounts is kept (switched off) as a record.",
+    "operationId": "delete_invite_code_api_v1_admin_invite_codes__invite_id__delete",
+    "parameters": [
+     {
+      "name": "invite_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "Invite Id"
+      }
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
   }
  },
  "components": {
@@ -4316,6 +5585,17 @@
      "is_archived": {
       "type": "boolean",
       "title": "Is Archived"
+     },
+     "business_id": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Business Id"
      }
     },
     "type": "object",
@@ -4392,6 +5672,17 @@
        }
       ],
       "title": "Opening Date"
+     },
+     "business_id": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Business Id"
      }
     },
     "additionalProperties": false,
@@ -4438,6 +5729,16 @@
      "balance": {
       "type": "string",
       "title": "Balance"
+     },
+     "business": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/Ref"
+       },
+       {
+        "type": "null"
+       }
+      ]
      }
     },
     "type": "object",
@@ -4533,6 +5834,17 @@
        }
       ],
       "title": "Notes"
+     },
+     "business_id": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Business Id"
      }
     },
     "additionalProperties": false,
@@ -5128,6 +6440,486 @@
      "utilization"
     ],
     "title": "BudgetSnapshot"
+   },
+   "BusinessCategoryTotal": {
+    "properties": {
+     "category_id": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Category Id"
+     },
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "color": {
+      "type": "string",
+      "title": "Color"
+     },
+     "total": {
+      "type": "string",
+      "title": "Total"
+     }
+    },
+    "type": "object",
+    "required": [
+     "category_id",
+     "name",
+     "color",
+     "total"
+    ],
+    "title": "BusinessCategoryTotal"
+   },
+   "BusinessDashboard": {
+    "properties": {
+     "income": {
+      "type": "string",
+      "title": "Income"
+     },
+     "expenses": {
+      "type": "string",
+      "title": "Expenses"
+     },
+     "operating_expenses": {
+      "type": "string",
+      "title": "Operating Expenses"
+     },
+     "project_expenses": {
+      "type": "string",
+      "title": "Project Expenses"
+     },
+     "profit": {
+      "type": "string",
+      "title": "Profit"
+     },
+     "business_count": {
+      "type": "integer",
+      "title": "Business Count"
+     },
+     "trend": {
+      "items": {
+       "$ref": "#/components/schemas/BusinessTrendPoint"
+      },
+      "type": "array",
+      "title": "Trend"
+     }
+    },
+    "type": "object",
+    "required": [
+     "income",
+     "expenses",
+     "operating_expenses",
+     "project_expenses",
+     "profit",
+     "business_count",
+     "trend"
+    ],
+    "title": "BusinessDashboard",
+    "description": "All businesses together for the period (business owners only)."
+   },
+   "BusinessIn": {
+    "properties": {
+     "name": {
+      "type": "string",
+      "maxLength": 150,
+      "minLength": 1,
+      "title": "Name"
+     },
+     "category": {
+      "type": "string",
+      "enum": [
+       "retail",
+       "services",
+       "manufacturing",
+       "construction",
+       "food",
+       "agriculture",
+       "trading",
+       "other"
+      ],
+      "title": "Category",
+      "default": "other"
+     },
+     "description": {
+      "type": "string",
+      "maxLength": 5000,
+      "title": "Description",
+      "default": ""
+     },
+     "gstin": {
+      "type": "string",
+      "maxLength": 20,
+      "pattern": "^[0-9A-Za-z]*$",
+      "title": "Gstin",
+      "default": ""
+     }
+    },
+    "additionalProperties": false,
+    "type": "object",
+    "required": [
+     "name"
+    ],
+    "title": "BusinessIn"
+   },
+   "BusinessOut": {
+    "properties": {
+     "id": {
+      "type": "integer",
+      "title": "Id"
+     },
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "category": {
+      "type": "string",
+      "title": "Category"
+     },
+     "description": {
+      "type": "string",
+      "title": "Description"
+     },
+     "gstin": {
+      "type": "string",
+      "title": "Gstin"
+     },
+     "is_archived": {
+      "type": "boolean",
+      "title": "Is Archived"
+     },
+     "project_count": {
+      "type": "integer",
+      "title": "Project Count"
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "name",
+     "category",
+     "description",
+     "gstin",
+     "is_archived",
+     "project_count",
+     "created_at"
+    ],
+    "title": "BusinessOut"
+   },
+   "BusinessOverviewOut": {
+    "properties": {
+     "period": {
+      "additionalProperties": {
+       "type": "string",
+       "format": "date"
+      },
+      "type": "object",
+      "title": "Period"
+     },
+     "totals": {
+      "$ref": "#/components/schemas/BusinessTotals"
+     },
+     "businesses": {
+      "items": {
+       "$ref": "#/components/schemas/BusinessSummaryRow"
+      },
+      "type": "array",
+      "title": "Businesses"
+     },
+     "trend": {
+      "items": {
+       "$ref": "#/components/schemas/BusinessTrendPoint"
+      },
+      "type": "array",
+      "title": "Trend"
+     },
+     "business_cash": {
+      "type": "string",
+      "title": "Business Cash"
+     }
+    },
+    "type": "object",
+    "required": [
+     "period",
+     "totals",
+     "businesses",
+     "trend",
+     "business_cash"
+    ],
+    "title": "BusinessOverviewOut"
+   },
+   "BusinessPatch": {
+    "properties": {
+     "name": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 150,
+        "minLength": 1
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Name"
+     },
+     "category": {
+      "anyOf": [
+       {
+        "type": "string",
+        "enum": [
+         "retail",
+         "services",
+         "manufacturing",
+         "construction",
+         "food",
+         "agriculture",
+         "trading",
+         "other"
+        ]
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Category"
+     },
+     "description": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 5000
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Description"
+     },
+     "gstin": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 20,
+        "pattern": "^[0-9A-Za-z]*$"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Gstin"
+     },
+     "is_archived": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Is Archived"
+     }
+    },
+    "additionalProperties": false,
+    "type": "object",
+    "title": "BusinessPatch"
+   },
+   "BusinessReportOut": {
+    "properties": {
+     "business": {
+      "$ref": "#/components/schemas/BusinessOut"
+     },
+     "period": {
+      "additionalProperties": {
+       "type": "string",
+       "format": "date"
+      },
+      "type": "object",
+      "title": "Period"
+     },
+     "totals": {
+      "$ref": "#/components/schemas/BusinessTotals"
+     },
+     "projects": {
+      "items": {
+       "$ref": "#/components/schemas/ProjectFigures"
+      },
+      "type": "array",
+      "title": "Projects"
+     },
+     "expense_by_category": {
+      "items": {
+       "$ref": "#/components/schemas/BusinessCategoryTotal"
+      },
+      "type": "array",
+      "title": "Expense By Category"
+     },
+     "income_by_category": {
+      "items": {
+       "$ref": "#/components/schemas/BusinessCategoryTotal"
+      },
+      "type": "array",
+      "title": "Income By Category"
+     },
+     "trend": {
+      "items": {
+       "$ref": "#/components/schemas/BusinessTrendPoint"
+      },
+      "type": "array",
+      "title": "Trend"
+     },
+     "balance": {
+      "type": "string",
+      "title": "Balance"
+     }
+    },
+    "type": "object",
+    "required": [
+     "business",
+     "period",
+     "totals",
+     "projects",
+     "expense_by_category",
+     "income_by_category",
+     "trend",
+     "balance"
+    ],
+    "title": "BusinessReportOut"
+   },
+   "BusinessSummaryRow": {
+    "properties": {
+     "income": {
+      "type": "string",
+      "title": "Income"
+     },
+     "expenses": {
+      "type": "string",
+      "title": "Expenses"
+     },
+     "operating_expenses": {
+      "type": "string",
+      "title": "Operating Expenses"
+     },
+     "project_expenses": {
+      "type": "string",
+      "title": "Project Expenses"
+     },
+     "profit": {
+      "type": "string",
+      "title": "Profit"
+     },
+     "id": {
+      "type": "integer",
+      "title": "Id"
+     },
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "category": {
+      "type": "string",
+      "title": "Category"
+     },
+     "is_archived": {
+      "type": "boolean",
+      "title": "Is Archived"
+     }
+    },
+    "type": "object",
+    "required": [
+     "income",
+     "expenses",
+     "operating_expenses",
+     "project_expenses",
+     "profit",
+     "id",
+     "name",
+     "category",
+     "is_archived"
+    ],
+    "title": "BusinessSummaryRow"
+   },
+   "BusinessTotals": {
+    "properties": {
+     "income": {
+      "type": "string",
+      "title": "Income"
+     },
+     "expenses": {
+      "type": "string",
+      "title": "Expenses"
+     },
+     "operating_expenses": {
+      "type": "string",
+      "title": "Operating Expenses"
+     },
+     "project_expenses": {
+      "type": "string",
+      "title": "Project Expenses"
+     },
+     "profit": {
+      "type": "string",
+      "title": "Profit"
+     }
+    },
+    "type": "object",
+    "required": [
+     "income",
+     "expenses",
+     "operating_expenses",
+     "project_expenses",
+     "profit"
+    ],
+    "title": "BusinessTotals"
+   },
+   "BusinessTrendPoint": {
+    "properties": {
+     "income": {
+      "type": "string",
+      "title": "Income"
+     },
+     "expenses": {
+      "type": "string",
+      "title": "Expenses"
+     },
+     "operating_expenses": {
+      "type": "string",
+      "title": "Operating Expenses"
+     },
+     "project_expenses": {
+      "type": "string",
+      "title": "Project Expenses"
+     },
+     "profit": {
+      "type": "string",
+      "title": "Profit"
+     },
+     "month": {
+      "type": "string",
+      "title": "Month"
+     }
+    },
+    "type": "object",
+    "required": [
+     "income",
+     "expenses",
+     "operating_expenses",
+     "project_expenses",
+     "profit",
+     "month"
+    ],
+    "title": "BusinessTrendPoint"
    },
    "CategoryIn": {
     "properties": {
@@ -5956,8 +7748,82 @@
     "type": "object",
     "title": "CustodyPatch"
    },
+   "CustodyReturnAllIn": {
+    "properties": {
+     "date": {
+      "type": "string",
+      "format": "date",
+      "title": "Date"
+     },
+     "account_id": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Account Id"
+     },
+     "expected_amount": {
+      "anyOf": [
+       {
+        "type": "number",
+        "exclusiveMinimum": 0.0
+       },
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Expected Amount"
+     },
+     "notes": {
+      "type": "string",
+      "maxLength": 5000,
+      "title": "Notes",
+      "default": ""
+     }
+    },
+    "additionalProperties": false,
+    "type": "object",
+    "required": [
+     "date"
+    ],
+    "title": "CustodyReturnAllIn",
+    "description": "Return everything still held. The amount is worked out on the server; `expected_amount` (what the user\nsaw on the confirmation) guards against returning a different figure after a concurrent change."
+   },
    "DashboardOut": {
     "properties": {
+     "profile": {
+      "anyOf": [
+       {
+        "type": "string",
+        "enum": [
+         "salaried",
+         "freelancer",
+         "business"
+        ]
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Profile"
+     },
+     "business": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/BusinessDashboard"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
      "period": {
       "additionalProperties": {
        "type": "string",
@@ -6973,6 +8839,207 @@
     "additionalProperties": false,
     "type": "object",
     "title": "InvestmentPatch"
+   },
+   "InviteCodeIn": {
+    "properties": {
+     "code": {
+      "type": "string",
+      "maxLength": 40,
+      "pattern": "^[A-Za-z0-9-]*$",
+      "title": "Code",
+      "default": ""
+     },
+     "note": {
+      "type": "string",
+      "maxLength": 200,
+      "title": "Note",
+      "default": ""
+     },
+     "max_uses": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "maximum": 10000.0,
+        "minimum": 1.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Max Uses",
+      "default": 1
+     },
+     "expires_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Expires At"
+     }
+    },
+    "additionalProperties": false,
+    "type": "object",
+    "title": "InviteCodeIn"
+   },
+   "InviteCodeOut": {
+    "properties": {
+     "id": {
+      "type": "integer",
+      "title": "Id"
+     },
+     "code": {
+      "type": "string",
+      "title": "Code"
+     },
+     "note": {
+      "type": "string",
+      "title": "Note"
+     },
+     "max_uses": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Max Uses"
+     },
+     "uses": {
+      "type": "integer",
+      "title": "Uses"
+     },
+     "expires_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Expires At"
+     },
+     "is_active": {
+      "type": "boolean",
+      "title": "Is Active"
+     },
+     "status": {
+      "type": "string",
+      "enum": [
+       "active",
+       "used_up",
+       "expired",
+       "disabled"
+      ],
+      "title": "Status"
+     },
+     "created_by": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Created By"
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     },
+     "last_used_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Last Used At"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "code",
+     "note",
+     "max_uses",
+     "uses",
+     "expires_at",
+     "is_active",
+     "status",
+     "created_by",
+     "created_at",
+     "last_used_at"
+    ],
+    "title": "InviteCodeOut"
+   },
+   "InviteCodePatch": {
+    "properties": {
+     "note": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 200
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Note"
+     },
+     "max_uses": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "maximum": 10000.0,
+        "minimum": 1.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Max Uses"
+     },
+     "expires_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Expires At"
+     },
+     "is_active": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Is Active"
+     }
+    },
+    "additionalProperties": false,
+    "type": "object",
+    "title": "InviteCodePatch"
    },
    "LoanDetailOut": {
     "properties": {
@@ -7991,6 +10058,10 @@
       "type": "string",
       "title": "Cash In Accounts"
      },
+     "business_cash": {
+      "type": "string",
+      "title": "Business Cash"
+     },
      "held_for_others": {
       "type": "string",
       "title": "Held For Others"
@@ -8043,6 +10114,7 @@
     "required": [
      "as_of",
      "cash_in_accounts",
+     "business_cash",
      "held_for_others",
      "personal_available",
      "savings_balance",
@@ -8097,6 +10169,741 @@
      "occurrence_date"
     ],
     "title": "PostOccurrenceIn"
+   },
+   "ProfileIn": {
+    "properties": {
+     "financial_profile": {
+      "type": "string",
+      "enum": [
+       "salaried",
+       "freelancer",
+       "business"
+      ],
+      "title": "Financial Profile"
+     }
+    },
+    "additionalProperties": false,
+    "type": "object",
+    "required": [
+     "financial_profile"
+    ],
+    "title": "ProfileIn"
+   },
+   "ProjectFigures": {
+    "properties": {
+     "id": {
+      "type": "integer",
+      "title": "Id"
+     },
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "client": {
+      "type": "string",
+      "title": "Client"
+     },
+     "status": {
+      "type": "string",
+      "title": "Status"
+     },
+     "start_date": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Start Date"
+     },
+     "end_date": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "End Date"
+     },
+     "income": {
+      "type": "string",
+      "title": "Income"
+     },
+     "expenses": {
+      "type": "string",
+      "title": "Expenses"
+     },
+     "profit": {
+      "type": "string",
+      "title": "Profit"
+     },
+     "has_data": {
+      "type": "boolean",
+      "title": "Has Data"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "name",
+     "client",
+     "status",
+     "start_date",
+     "end_date",
+     "income",
+     "expenses",
+     "profit",
+     "has_data"
+    ],
+    "title": "ProjectFigures"
+   },
+   "ProjectIn": {
+    "properties": {
+     "name": {
+      "type": "string",
+      "maxLength": 150,
+      "minLength": 1,
+      "title": "Name"
+     },
+     "client": {
+      "type": "string",
+      "maxLength": 150,
+      "title": "Client",
+      "default": ""
+     },
+     "description": {
+      "type": "string",
+      "maxLength": 5000,
+      "title": "Description",
+      "default": ""
+     },
+     "status": {
+      "type": "string",
+      "enum": [
+       "active",
+       "on_hold",
+       "completed"
+      ],
+      "title": "Status",
+      "default": "active"
+     },
+     "start_date": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Start Date"
+     },
+     "end_date": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "End Date"
+     }
+    },
+    "additionalProperties": false,
+    "type": "object",
+    "required": [
+     "name"
+    ],
+    "title": "ProjectIn"
+   },
+   "ProjectOut": {
+    "properties": {
+     "id": {
+      "type": "integer",
+      "title": "Id"
+     },
+     "business_id": {
+      "type": "integer",
+      "title": "Business Id"
+     },
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "client": {
+      "type": "string",
+      "title": "Client"
+     },
+     "description": {
+      "type": "string",
+      "title": "Description"
+     },
+     "status": {
+      "type": "string",
+      "title": "Status"
+     },
+     "start_date": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Start Date"
+     },
+     "end_date": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "End Date"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "business_id",
+     "name",
+     "client",
+     "description",
+     "status",
+     "start_date",
+     "end_date"
+    ],
+    "title": "ProjectOut"
+   },
+   "ProjectPatch": {
+    "properties": {
+     "name": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 150,
+        "minLength": 1
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Name"
+     },
+     "client": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 150
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Client"
+     },
+     "description": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 5000
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Description"
+     },
+     "status": {
+      "anyOf": [
+       {
+        "type": "string",
+        "enum": [
+         "active",
+         "on_hold",
+         "completed"
+        ]
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Status"
+     },
+     "start_date": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Start Date"
+     },
+     "end_date": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "End Date"
+     }
+    },
+    "additionalProperties": false,
+    "type": "object",
+    "title": "ProjectPatch"
+   },
+   "QuickRunIn": {
+    "properties": {
+     "amount": {
+      "anyOf": [
+       {
+        "type": "number",
+        "exclusiveMinimum": 0.0
+       },
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Amount"
+     },
+     "date": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Date"
+     },
+     "time": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Time"
+     },
+     "notes": {
+      "type": "string",
+      "maxLength": 5000,
+      "title": "Notes",
+      "default": ""
+     }
+    },
+    "additionalProperties": false,
+    "type": "object",
+    "title": "QuickRunIn"
+   },
+   "QuickTransactionIn": {
+    "properties": {
+     "name": {
+      "type": "string",
+      "maxLength": 60,
+      "minLength": 1,
+      "title": "Name"
+     },
+     "kind": {
+      "type": "string",
+      "enum": [
+       "expense",
+       "income"
+      ],
+      "title": "Kind",
+      "default": "expense"
+     },
+     "amount": {
+      "anyOf": [
+       {
+        "type": "number",
+        "exclusiveMinimum": 0.0
+       },
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Amount"
+     },
+     "account_id": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Account Id"
+     },
+     "category_id": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Category Id"
+     },
+     "business_id": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Business Id"
+     },
+     "project_id": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Project Id"
+     },
+     "description": {
+      "type": "string",
+      "maxLength": 255,
+      "title": "Description",
+      "default": ""
+     },
+     "merchant": {
+      "type": "string",
+      "maxLength": 150,
+      "title": "Merchant",
+      "default": ""
+     },
+     "payment_method": {
+      "type": "string",
+      "enum": [
+       "cash",
+       "upi",
+       "debit_card",
+       "credit_card",
+       "net_banking",
+       "cheque",
+       "other",
+       ""
+      ],
+      "title": "Payment Method",
+      "default": ""
+     }
+    },
+    "additionalProperties": false,
+    "type": "object",
+    "required": [
+     "name"
+    ],
+    "title": "QuickTransactionIn"
+   },
+   "QuickTransactionOut": {
+    "properties": {
+     "id": {
+      "type": "integer",
+      "title": "Id"
+     },
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "kind": {
+      "type": "string",
+      "title": "Kind"
+     },
+     "amount": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Amount"
+     },
+     "account": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/Ref"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "category": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/Ref"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "business": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/Ref"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "project": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/Ref"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "description": {
+      "type": "string",
+      "title": "Description"
+     },
+     "merchant": {
+      "type": "string",
+      "title": "Merchant"
+     },
+     "payment_method": {
+      "type": "string",
+      "title": "Payment Method"
+     },
+     "sort_order": {
+      "type": "integer",
+      "title": "Sort Order"
+     },
+     "use_count": {
+      "type": "integer",
+      "title": "Use Count"
+     },
+     "last_used_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Last Used At"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "name",
+     "kind",
+     "amount",
+     "account",
+     "category",
+     "business",
+     "project",
+     "description",
+     "merchant",
+     "payment_method",
+     "sort_order",
+     "use_count",
+     "last_used_at"
+    ],
+    "title": "QuickTransactionOut"
+   },
+   "QuickTransactionPatch": {
+    "properties": {
+     "name": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 60,
+        "minLength": 1
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Name"
+     },
+     "kind": {
+      "anyOf": [
+       {
+        "type": "string",
+        "enum": [
+         "expense",
+         "income"
+        ]
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Kind"
+     },
+     "amount": {
+      "anyOf": [
+       {
+        "type": "number",
+        "exclusiveMinimum": 0.0
+       },
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Amount"
+     },
+     "account_id": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Account Id"
+     },
+     "category_id": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Category Id"
+     },
+     "business_id": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Business Id"
+     },
+     "project_id": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Project Id"
+     },
+     "description": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 255
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Description"
+     },
+     "merchant": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 150
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Merchant"
+     },
+     "payment_method": {
+      "anyOf": [
+       {
+        "type": "string",
+        "enum": [
+         "cash",
+         "upi",
+         "debit_card",
+         "credit_card",
+         "net_banking",
+         "cheque",
+         "other",
+         ""
+        ]
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Payment Method"
+     },
+     "sort_order": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "maximum": 10000.0,
+        "minimum": 0.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Sort Order"
+     }
+    },
+    "additionalProperties": false,
+    "type": "object",
+    "title": "QuickTransactionPatch"
    },
    "RecurringIn": {
     "properties": {
@@ -8586,6 +11393,22 @@
      "google_connected": {
       "type": "boolean",
       "title": "Google Connected"
+     },
+     "financial_profile": {
+      "anyOf": [
+       {
+        "type": "string",
+        "enum": [
+         "salaried",
+         "freelancer",
+         "business"
+        ]
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Financial Profile"
      }
     },
     "type": "object",
@@ -8598,6 +11421,24 @@
      "google_connected"
     ],
     "title": "SessionOut"
+   },
+   "SetAccountIn": {
+    "properties": {
+     "account_id": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Account Id"
+     }
+    },
+    "additionalProperties": false,
+    "type": "object",
+    "title": "SetAccountIn"
    },
    "SplitOut": {
     "properties": {
@@ -8732,6 +11573,28 @@
       ],
       "title": "Event Name"
      },
+     "business_id": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Business Id"
+     },
+     "project_id": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Project Id"
+     },
      "description": {
       "type": "string",
       "maxLength": 255,
@@ -8860,6 +11723,26 @@
        }
       ]
      },
+     "business": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/Ref"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "project": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/Ref"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
      "loan_id": {
       "anyOf": [
        {
@@ -8928,6 +11811,38 @@
      "is_workflow": {
       "type": "boolean",
       "title": "Is Workflow"
+     },
+     "is_adjustment": {
+      "type": "boolean",
+      "title": "Is Adjustment",
+      "default": false
+     },
+     "reverses_id": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Reverses Id"
+     },
+     "reversed_by_id": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Reversed By Id"
+     },
+     "can_undo": {
+      "type": "boolean",
+      "title": "Can Undo",
+      "default": false
      },
      "created_at": {
       "type": "string",
@@ -9101,6 +12016,28 @@
        }
       ],
       "title": "Event Name"
+     },
+     "business_id": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Business Id"
+     },
+     "project_id": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Project Id"
      },
      "description": {
       "anyOf": [

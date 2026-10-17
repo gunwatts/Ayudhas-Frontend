@@ -1,13 +1,14 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Handshake, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
+import { APP_NAME, BrandMark } from "@/components/brand";
 import { Field } from "@/components/fields";
 import { GoogleButton, OrDivider, useAuthConfig } from "@/components/google-button";
 import { Button } from "@/components/ui/button";
@@ -65,11 +66,10 @@ function LoginForm() {
   return (
     <Card className="w-full max-w-sm">
       <CardHeader className="text-center">
-        <span className="mx-auto mb-2 grid size-10 place-items-center rounded-xl bg-primary text-primary-foreground">
-          <Handshake className="size-5" aria-hidden />
-        </span>
+        <BrandMark size="lg" className="mx-auto mb-2" />
+        <p className="text-sm font-semibold tracking-tight text-muted-foreground">{APP_NAME}</p>
         <CardTitle className="text-xl">Sign in</CardTitle>
-        <CardDescription>Expense Tracker users: use your existing username and password.</CardDescription>
+        <CardDescription>Use your username and password, or continue with Google.</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={onSubmit} className="grid gap-4" noValidate>
@@ -120,7 +120,7 @@ export default function LoginPage() {
           <LoginForm />
         </Suspense>
         <a href="https://ayudhas.com" className="text-xs text-muted-foreground underline-offset-4 hover:underline">
-          Ayudhas Finance · part of Ayudhas
+          {APP_NAME} · part of Ayudhas
         </a>
       </div>
     </main>

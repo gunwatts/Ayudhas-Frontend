@@ -4,12 +4,12 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowLeft, Loader2, MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useState } from "react";
+import { Suspense, useCallback, useState } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 
 import { ConfirmAction, ErrorState, LoadingRows, Money, StatCard } from "@/components/common";
-import { AccountSelect, AmountInput, Field } from "@/components/fields";
+import { AccountSelect, AmountInput, Field, useDefaultAccount } from "@/components/fields";
 import { FormDialog, FormError } from "@/components/form-dialog";
 import { LOAN_TYPES, LoanForm, METHODS } from "@/components/loans";
 import { AmountCell } from "@/components/transactions-list";
@@ -57,6 +57,10 @@ function RepaymentForm({ loan, onDone }: { loan: LoanDetail; onDone: () => void 
     },
   });
   const v = useWatch({ control: form.control }) as RepayValues;
+  // A repayment you receive comes into one of your accounts and raises your available balance.
+  const setAccount = useCallback((id: string) => form.setValue("account_id", id), [form]);
+  const { hasAccounts } = useDefaultAccount(v.account_id ?? "", setAccount, isGiven);
+  const accountRequired = isGiven && hasAccounts;
 
   async function suggest() {
     if (!isValidAmount(v.amount)) return;
@@ -89,12 +93,13 @@ function RepaymentForm({ loan, onDone }: { loan: LoanDetail; onDone: () => void 
     { success: "Repayment recorded", silentError: true },
   );
   const onSubmit = form.handleSubmit(async (values) => {
+    if (accountRequired && !values.account_id) return form.setError("account_id", { message: "Choose the account the money came into" });
     setError(null);
     try {
       await save.mutateAsync(values);
       onDone();
     } catch (e) {
-      setError(applyFieldErrors(e, form.setError as never, ["amount", "date", "principal", "interest", "fee"]));
+      setError(applyFieldErrors(e, form.setError as never, ["amount", "date", "account_id", "principal", "interest", "fee"]));
     }
   });
   const e = form.formState.errors;
@@ -110,8 +115,10 @@ function RepaymentForm({ loan, onDone }: { loan: LoanDetail; onDone: () => void 
         <Field label="Date" required error={e.date?.message}>
           {({ id }) => <Input id={id} type="date" {...form.register("date")} />}
         </Field>
-        <Field label={isGiven ? "Received into" : "Paid from"} className="sm:col-span-2">
-          {({ id }) => <Controller control={form.control} name="account_id" render={({ field }) => <AccountSelect id={id} value={field.value} onChange={field.onChange} />} />}
+        <Field label={isGiven ? "Received into" : "Paid from"} className="sm:col-span-2" required={accountRequired} error={e.account_id?.message}>
+          {({ id, invalid }) => (
+            <Controller control={form.control} name="account_id" render={({ field }) => <AccountSelect id={id} value={field.value} onChange={field.onChange} invalid={invalid} allowNone={!accountRequired} />} />
+          )}
         </Field>
       </div>
       <div className="rounded-lg border p-3">
@@ -163,6 +170,11 @@ function DisbursementForm({ loan, onDone }: { loan: LoanDetail; onDone: () => vo
   const [key] = useState(newIdempotencyKey);
   const [error, setError] = useState<string | null>(null);
   const form = useForm({ defaultValues: { amount: "", date: today(), account_id: "", notes: "" } });
+  const isGiven = loan.direction === "given";
+  const accountValue = useWatch({ control: form.control, name: "account_id" });
+  const setAccount = useCallback((id: string) => form.setValue("account_id", id), [form]);
+  const { hasAccounts } = useDefaultAccount(accountValue, setAccount, isGiven);
+  const accountRequired = isGiven && hasAccounts;
   const save = useFinanceMutation(
     (v: { amount: string; date: string; account_id: string; notes: string }) =>
       api.post(`/loans/${loan.id}/disbursements`, { amount: normalizeAmount(v.amount), date: v.date, account_id: v.account_id ? Number(v.account_id) : null, notes: v.notes }, key),
@@ -174,12 +186,13 @@ function DisbursementForm({ loan, onDone }: { loan: LoanDetail; onDone: () => vo
       noValidate
       onSubmit={form.handleSubmit(async (v) => {
         if (!isValidAmount(v.amount)) return form.setError("amount", { message: "Enter a valid amount" });
+        if (accountRequired && !v.account_id) return form.setError("account_id", { message: "Choose the account the money was paid from" });
         setError(null);
         try {
           await save.mutateAsync(v);
           onDone();
         } catch (e) {
-          setError(applyFieldErrors(e, form.setError as never, ["amount", "date"]));
+          setError(applyFieldErrors(e, form.setError as never, ["amount", "date", "account_id"]));
         }
       })}
     >
@@ -188,8 +201,10 @@ function DisbursementForm({ loan, onDone }: { loan: LoanDetail; onDone: () => vo
           {({ id }) => <AmountInput id={id} autoFocus {...form.register("amount")} />}
         </Field>
         <Field label="Date">{({ id }) => <Input id={id} type="date" {...form.register("date")} />}</Field>
-        <Field label={loan.direction === "given" ? "Paid from" : "Received into"} className="sm:col-span-2">
-          {({ id }) => <Controller control={form.control} name="account_id" render={({ field }) => <AccountSelect id={id} value={field.value} onChange={field.onChange} />} />}
+        <Field label={isGiven ? "Paid from" : "Received into"} className="sm:col-span-2" required={accountRequired} error={form.formState.errors.account_id?.message}>
+          {({ id, invalid }) => (
+            <Controller control={form.control} name="account_id" render={({ field }) => <AccountSelect id={id} value={field.value} onChange={field.onChange} invalid={invalid} allowNone={!accountRequired} />} />
+          )}
         </Field>
       </div>
       <FormError message={error} />
@@ -208,11 +223,48 @@ const STATUS_STYLE: Record<string, { label: string; variant: "secondary" | "dest
   upcoming: { label: "Upcoming", variant: "outline" },
 };
 
+/** Attach the account a past entry went through (e.g. money lent that was recorded without an account). */
+function SetAccountForm({ loan, txn, onDone }: { loan: LoanDetail; txn: Txn; onDone: () => void }) {
+  const [accountId, setAccountId] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const save = useFinanceMutation(() => api.patch(`/loans/${loan.id}/transactions/${txn.id}`, { account_id: accountId ? Number(accountId) : null }), {
+    success: "Account set",
+    silentError: true,
+  });
+  const into = txn.kind === "lend_repayment" || txn.kind === "loan_disbursement";
+  return (
+    <form
+      className="grid gap-4"
+      onSubmit={async (e) => {
+        e.preventDefault();
+        if (!accountId) return setError("Choose an account");
+        setError(null);
+        try {
+          await save.mutateAsync(undefined);
+          onDone();
+        } catch (err) {
+          setError(applyFieldErrors(err, () => {}, []));
+        }
+      }}
+    >
+      <p className="text-sm text-muted-foreground">
+        {txn.kind_label} of {formatMoney(txn.amount)} on {formatDate(txn.date)}. The account&apos;s balance will {into ? "go up" : "go down"} by this amount.
+      </p>
+      <Field label={into ? "Received into" : "Paid from"}>{({ id }) => <AccountSelect id={id} value={accountId} onChange={setAccountId} allowNone={false} />}</Field>
+      <FormError message={error} />
+      <div className="flex justify-end">
+        <Button type="submit" disabled={save.isPending}>{save.isPending ? "Saving…" : "Save"}</Button>
+      </div>
+    </form>
+  );
+}
+
 function LoanDetailView({ id }: { id: number }) {
   const loan = useLoan(id);
   const router = useRouter();
   const [dialog, setDialog] = useState<null | "repay" | "disburse" | "edit" | "delete">(null);
   const [deleting, setDeleting] = useState<Txn | null>(null);
+  const [accountFor, setAccountFor] = useState<Txn | null>(null);
   const [showAll, setShowAll] = useState(false);
   const delTxn = useFinanceMutation((t: Txn) => api.delete(`/loans/${id}/transactions/${t.id}`), { success: "Entry deleted" });
   const delLoan = useFinanceMutation(() => api.delete(`/loans/${id}`), { success: "Loan deleted" });
@@ -364,7 +416,13 @@ function LoanDetailView({ id }: { id: number }) {
                       {t.kind_label}
                       {t.notes && <span className="block max-w-56 truncate text-xs text-muted-foreground">{t.notes}</span>}
                     </TableCell>
-                    <TableCell className="text-muted-foreground">{t.account?.name ?? "—"}</TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {t.account?.name ?? (
+                        <Button variant="link" size="sm" className="h-auto p-0" onClick={() => setAccountFor(t)}>
+                          Set account
+                        </Button>
+                      )}
+                    </TableCell>
                     <TableCell className="num text-right">{repayment ? formatMoney(t.principal_portion) : "—"}</TableCell>
                     <TableCell className="num text-right">{repayment ? formatMoney(addMoney(t.interest_portion, t.fee_portion)) : "—"}</TableCell>
                     <TableCell className="text-right"><AmountCell t={t} /></TableCell>
@@ -382,6 +440,9 @@ function LoanDetailView({ id }: { id: number }) {
         </CardContent>
       </Card>
 
+      <FormDialog open={!!accountFor} onOpenChange={(o) => !o && setAccountFor(null)} title="Set the account">
+        {accountFor && <SetAccountForm loan={l} txn={accountFor} onDone={() => setAccountFor(null)} />}
+      </FormDialog>
       <FormDialog open={dialog === "repay"} onOpenChange={(o) => !o && setDialog(null)} title={isGiven ? "Record amount received" : "Record repayment"} description={l.name}>
         <RepaymentForm loan={l} onDone={() => setDialog(null)} />
       </FormDialog>

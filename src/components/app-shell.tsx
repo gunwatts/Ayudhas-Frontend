@@ -6,9 +6,9 @@ import {
   ArrowUpRight,
   BarChart3,
   CalendarClock,
+  CalendarHeart,
   ChevronDown,
   HandCoins,
-  Handshake,
   KeyRound,
   Landmark,
   LayoutDashboard,
@@ -19,9 +19,11 @@ import {
   NotebookPen,
   PiggyBank,
   Plus,
+  Settings,
   Shapes,
+  Store,
   Sun,
-  Target,
+  Ticket,
   TrendingUp,
   Users,
   Vault,
@@ -32,7 +34,9 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { BrandLockup } from "@/components/brand";
 import { MoneyAmbient } from "@/components/motion";
+import { OnboardingDialog } from "@/components/onboarding";
 import { TransactionForm, type GenericKind } from "@/components/transaction-form";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -62,7 +66,7 @@ export const NAV: { section: string; items: NavItem[] }[] = [
       { href: "/income/", label: "Income", icon: ArrowDownLeft },
       { href: "/expenses/", label: "Expenses", icon: ArrowUpRight },
       { href: "/accounts/", label: "Accounts", icon: Wallet },
-      { href: "/budgets/", label: "Budgets", icon: Target },
+      { href: "/events/", label: "Events", icon: CalendarHeart },
     ],
   },
   {
@@ -98,12 +102,21 @@ function isActive(pathname: string, href: string) {
   return p.startsWith(href);
 }
 
-const OWNER_NAV = { section: "Site", items: [{ href: "/messages/", label: "Messages", icon: Inbox }] };
+const OWNER_NAV = {
+  section: "Site",
+  items: [
+    { href: "/messages/", label: "Messages", icon: Inbox },
+    { href: "/admin/invites/", label: "Invite codes", icon: Ticket },
+  ],
+};
+const BUSINESS_NAV = { section: "Business", items: [{ href: "/business/", label: "Businesses & projects", icon: Store }] };
 
 function NavList({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
-  const { user } = useSession();
-  const groups = user?.is_staff ? [...NAV, OWNER_NAV] : NAV;
+  const { user, session } = useSession();
+  // Business pages are for business owners; the server allows them for anyone, so this only declutters the menu.
+  const base = session?.financial_profile === "business" ? [NAV[0], BUSINESS_NAV, ...NAV.slice(1)] : NAV;
+  const groups = user?.is_staff ? [...base, OWNER_NAV] : base;
   return (
     <nav aria-label="Main" className="flex flex-col gap-5">
       {groups.map((group) => (
@@ -140,11 +153,8 @@ function NavList({ onNavigate }: { onNavigate?: () => void }) {
 
 function Brand() {
   return (
-    <Link href="/" className="flex items-center gap-2 px-3 font-semibold tracking-tight">
-      <span className="grid size-7 place-items-center rounded-lg bg-primary text-primary-foreground">
-        <Handshake className="size-4" aria-hidden />
-      </span>
-      Finance Tracker
+    <Link href="/" className="flex min-w-0 items-center px-3">
+      <BrandLockup />
     </Link>
   );
 }
@@ -190,6 +200,9 @@ function UserMenu() {
         </DropdownMenuRadioGroup>
         <DropdownMenuSeparator />
         <DropdownMenuItem onSelect={() => router.push("/settings/")}>
+          <Settings /> Settings
+        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => router.push("/settings/#password")}>
           <KeyRound /> Change password
         </DropdownMenuItem>
         <DropdownMenuItem
@@ -267,6 +280,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </div>
 
       <QuickAdd open={quickAdd} onOpenChange={setQuickAdd} kind={quickKind} />
+      <OnboardingDialog />
     </div>
   );
 }

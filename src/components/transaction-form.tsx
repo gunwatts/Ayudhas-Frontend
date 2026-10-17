@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 
-import { AccountSelect, AmountInput, CategorySelect, EventInput, Field, NONE, SimpleSelect } from "@/components/fields";
+import { AccountSelect, AmountInput, BusinessSelect, CategorySelect, EventInput, Field, NONE, ProjectSelect, SimpleSelect } from "@/components/fields";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -13,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { api, applyFieldErrors, newIdempotencyKey } from "@/lib/api";
 import { today } from "@/lib/dates";
 import { isValidAmount, normalizeAmount } from "@/lib/money";
-import { type Txn, useFinanceMutation } from "@/lib/queries";
+import { type Txn, useBusinesses, useFinanceMutation } from "@/lib/queries";
 
 export const GENERIC_KINDS = ["expense", "income", "transfer", "refund", "adjustment_in", "adjustment_out"] as const;
 export type GenericKind = (typeof GENERIC_KINDS)[number];
@@ -48,6 +48,8 @@ const schema = z
     to_account_id: z.string(),
     category_id: z.string(),
     event_name: z.string().max(150, "Keep the event name under 150 characters"),
+    business_id: z.string(),
+    project_id: z.string(),
     description: z.string().max(255, "Keep it under 255 characters"),
     merchant: z.string().max(150),
     payment_method: z.string(),
@@ -65,7 +67,7 @@ const schema = z
   });
 
 type Values = z.infer<typeof schema>;
-const FIELDS = ["kind", "amount", "date", "time", "account_id", "to_account_id", "category_id", "event_name", "description", "merchant", "payment_method", "notes"] as const;
+const FIELDS = ["kind", "amount", "date", "time", "account_id", "to_account_id", "category_id", "event_name", "business_id", "project_id", "description", "merchant", "payment_method", "notes"] as const;
 
 function toBody(v: Values) {
   const id = (s: string) => (s ? Number(s) : null);
@@ -80,6 +82,9 @@ function toBody(v: Values) {
     category_id: v.kind === "income" || isSpend ? id(v.category_id) : null,
     // Matched to an existing event by name (any case) or created by the server; "" removes the link.
     event_name: isSpend ? v.event_name.trim() : "",
+    // Business money stays out of personal totals; only income, expenses and refunds can belong to a business.
+    business_id: v.kind === "income" || isSpend ? id(v.business_id) : null,
+    project_id: (v.kind === "income" || isSpend) && v.business_id ? id(v.project_id) : null,
     description: v.description.trim(),
     merchant: isSpend ? v.merchant.trim() : "",
     payment_method: v.payment_method === NONE ? "" : v.payment_method,
@@ -91,12 +96,17 @@ export function TransactionForm({
   initial,
   defaultKind = "expense",
   defaultEventName = "",
+  defaultBusinessId,
+  defaultProjectId,
   onDone,
 }: {
   initial?: Txn;
   defaultKind?: GenericKind;
   /** Pre-fill the event (e.g. "Add expense" on an event card). */
   defaultEventName?: string;
+  /** Pre-fill the business (and project), e.g. "Add expense" on a business page. */
+  defaultBusinessId?: number;
+  defaultProjectId?: number;
   onDone: (txn: Txn) => void;
 }) {
   const [idempotencyKey] = useState(newIdempotencyKey);
@@ -113,18 +123,23 @@ export function TransactionForm({
       to_account_id: initial?.to_account ? String(initial.to_account.id) : "",
       category_id: initial?.category ? String(initial.category.id) : "",
       event_name: initial?.event?.name ?? defaultEventName,
+      business_id: initial ? (initial.business ? String(initial.business.id) : "") : defaultBusinessId ? String(defaultBusinessId) : "",
+      project_id: initial ? (initial.project ? String(initial.project.id) : "") : defaultProjectId ? String(defaultProjectId) : "",
       description: initial?.description ?? "",
       merchant: initial?.merchant ?? "",
       payment_method: initial?.payment_method || NONE,
       notes: initial?.notes ?? "",
     }),
-    [initial, defaultKind, defaultEventName],
+    [initial, defaultKind, defaultEventName, defaultBusinessId, defaultProjectId],
   );
 
   const form = useForm<Values>({ resolver: zodResolver(schema), defaultValues: defaults });
   const { register, control, handleSubmit, setError, setValue, formState } = form;
   const kind = useWatch({ control, name: "kind" });
+  const businessId = useWatch({ control, name: "business_id" });
   const isSpend = kind === "expense" || kind === "refund";
+  const businesses = useBusinesses();
+  const showBusiness = (kind === "income" || isSpend) && (!!businesses.data?.some((b) => !b.is_archived) || !!initial?.business);
 
   const mutation = useFinanceMutation(
     (values: Values) =>
@@ -144,7 +159,10 @@ export function TransactionForm({
     }
   });
 
-  const kindTabs: GenericKind[] = showMore ? [...GENERIC_KINDS] : ["expense", "income", "transfer"];
+  // An existing transaction can't be turned into a balance adjustment (adjustments are undone, never edited).
+  const kindTabs: GenericKind[] = showMore
+    ? GENERIC_KINDS.filter((k) => !initial || !k.startsWith("adjustment"))
+    : ["expense", "income", "transfer"];
 
   return (
     <form onSubmit={onSubmit} className="grid gap-4" noValidate>
@@ -171,7 +189,7 @@ export function TransactionForm({
       />
       {!showMore && (
         <button type="button" className="-mt-2 justify-self-start text-xs text-muted-foreground underline-offset-4 hover:underline" onClick={() => setShowMore(true)}>
-          Refund or balance adjustment?
+          {initial ? "Refund?" : "Refund or balance adjustment?"}
         </button>
       )}
 
@@ -241,6 +259,40 @@ export function TransactionForm({
           </Field>
         ) : (
           <div />
+        )}
+
+        {showBusiness && (
+          <>
+            <Field label="For" hint="Business income and costs are kept out of your personal totals." error={formState.errors.business_id?.message}>
+              {({ id, describedBy, invalid }) => (
+                <Controller
+                  control={control}
+                  name="business_id"
+                  render={({ field }) => (
+                    <BusinessSelect
+                      id={id}
+                      value={field.value}
+                      invalid={invalid}
+                      describedBy={describedBy}
+                      onChange={(v) => {
+                        field.onChange(v);
+                        setValue("project_id", "");
+                      }}
+                    />
+                  )}
+                />
+              )}
+            </Field>
+            <Field label="Project" error={formState.errors.project_id?.message}>
+              {({ id, describedBy, invalid }) => (
+                <Controller
+                  control={control}
+                  name="project_id"
+                  render={({ field }) => <ProjectSelect id={id} businessId={businessId} value={field.value} onChange={field.onChange} invalid={invalid} describedBy={describedBy} />}
+                />
+              )}
+            </Field>
+          </>
         )}
 
         <Field label="Description" error={formState.errors.description?.message} className="sm:col-span-2">

@@ -15,7 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { API_BASE_URL } from "@/lib/api";
-import { useAccounts, useCategories, useCategoryTotals, useFlows, useTransactions } from "@/lib/queries";
+import { useAccounts, useBusinesses, useCategories, useCategoryTotals, useFlows, useTransactions } from "@/lib/queries";
 
 const KIND_FILTERS: Record<string, { label: string; kinds?: string[] }> = {
   all: { label: "All types" },
@@ -49,8 +49,13 @@ async function downloadCsv(params: URLSearchParams) {
   URL.revokeObjectURL(url);
 }
 
-/** Transactions with filters. `fixedKind` locks the view to income or expenses. */
+/** Transactions with filters. `fixedKind` locks the view to (personal) income or expenses; their totals are personal
+ *  figures, so business entries are left out there and shown on the Business pages instead. */
 export function LedgerView({ fixedKind }: { fixedKind?: "income" | "expense" }) {
+  const businesses = useBusinesses();
+  const hasBusiness = !!businesses.data?.length;
+  const [scopeChoice, setScope] = useState<"all" | "personal" | "business">("all");
+  const scope = fixedKind ? "personal" : scopeChoice;
   const [period, setPeriod] = usePeriod("this_month");
   const [kindKey, setKindKey] = useState(fixedKind ?? "all");
   const [accountId, setAccountId] = useState("");
@@ -60,7 +65,7 @@ export function LedgerView({ fixedKind }: { fixedKind?: "income" | "expense" }) 
   const q = useDebounced(search);
   const pageSize = 50;
   // Any filter change returns to page 1 (page is tied to the filter combination it was chosen for).
-  const filterKey = JSON.stringify([period.start, period.end, kindKey, accountId, categoryId, q, sort]);
+  const filterKey = JSON.stringify([period.start, period.end, kindKey, accountId, categoryId, q, sort, scope]);
   const [pageState, setPageState] = useState({ key: filterKey, page: 1 });
   const page = pageState.key === filterKey ? pageState.page : 1;
   const setPage = (update: (p: number) => number) => setPageState({ key: filterKey, page: update(page) });
@@ -73,6 +78,7 @@ export function LedgerView({ fixedKind }: { fixedKind?: "income" | "expense" }) 
     account_id: accountId ? Number(accountId) : undefined,
     category_id: categoryId ? Number(categoryId) : undefined,
     q: q || undefined,
+    scope: scope === "all" ? undefined : scope,
     sort,
     page,
     page_size: pageSize,
@@ -103,6 +109,18 @@ export function LedgerView({ fixedKind }: { fixedKind?: "income" | "expense" }) 
                   {v.label}
                 </SelectItem>
               ))}
+            </SelectContent>
+          </Select>
+        )}
+        {!fixedKind && hasBusiness && (
+          <Select value={scopeChoice} onValueChange={(v) => setScope(v as typeof scopeChoice)}>
+            <SelectTrigger className="w-44" aria-label="Personal or business">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Personal & business</SelectItem>
+              <SelectItem value="personal">Personal only</SelectItem>
+              <SelectItem value="business">Business only</SelectItem>
             </SelectContent>
           </Select>
         )}
@@ -147,6 +165,7 @@ export function LedgerView({ fixedKind }: { fixedKind?: "income" | "expense" }) 
           variant="outline"
           onClick={() => {
             const p = new URLSearchParams({ start: period.start, end: period.end });
+            if (scope !== "all") p.set("scope", scope);
             kinds?.forEach((k) => p.append("kind", k));
             downloadCsv(p).catch(() => toast.error("Couldn't export. Please try again."));
           }}

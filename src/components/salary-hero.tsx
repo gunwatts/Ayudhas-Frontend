@@ -1,13 +1,14 @@
 "use client";
 
-import { ArrowRight, Info, Sparkles } from "lucide-react";
+import { ArrowRight, Sparkles } from "lucide-react";
+
+import { InfoTip } from "@/components/common";
 import Link from "next/link";
 
 import { AnimatedMoney, RingProgress } from "@/components/motion";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { formatMonth, today } from "@/lib/dates";
 import { formatMoney, isNegative, isZero, toNumber } from "@/lib/money";
 import type { Dashboard } from "@/lib/queries";
@@ -15,7 +16,7 @@ import { cn } from "@/lib/utils";
 
 const SOURCE: Record<string, string> = {
   income: "from salary income you recorded",
-  set: "set for the month on the Budgets page",
+  set: "set for the month on the Income page",
   none: "not recorded yet",
 };
 
@@ -70,17 +71,11 @@ export function SalaryHero({ data, periodLabel, start, end, loading }: { data?: 
             </span>
             <h2 id="salary-hero-title" className="text-base font-semibold">Salary vs spending</h2>
             <span className="rounded-full border bg-card/70 px-2 py-0.5 text-xs text-muted-foreground">{periodLabel}</span>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button type="button" className="text-muted-foreground hover:text-foreground" aria-label="How salary is worked out">
-                  <Info className="size-3.5" />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent className="max-w-xs">
-                Salary is monthly: the income you record under the Salary category, or else the salary set for that month on the Budgets
-                page. A period counts the months that start inside it. Spent includes every expense, including event spending.
-              </TooltipContent>
-            </Tooltip>
+            <InfoTip label="How salary is worked out">
+              Salary is monthly: the income you record under the Salary category, or else the salary you set for that month on the
+              Income page (Monthly salary). A period counts the months that start inside it. Spent includes every personal expense,
+              including event spending.
+            </InfoTip>
           </div>
 
           {loading || !flows ? (
@@ -120,7 +115,7 @@ export function SalaryHero({ data, periodLabel, start, end, loading }: { data?: 
               {carried && <span className="rounded-full border bg-card/70 px-2.5 py-1">+{formatMoney(carried)} carried from last month</span>}
               {noSalary && (
                 <Button asChild size="sm" variant="outline" className="h-7 rounded-full">
-                  <Link href="/budgets/">
+                  <Link href="/income/?tab=salary">
                     Set your salary <ArrowRight />
                   </Link>
                 </Button>

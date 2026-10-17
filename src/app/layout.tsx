@@ -10,8 +10,9 @@ const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: { default: "Finance Tracker", template: "%s · Finance Tracker" },
-  description: "Personal finance: income, expenses, loans, money held for others, savings and investments.",
+  title: { default: "Finance Ayudhas", template: "%s · Finance Ayudhas" },
+  applicationName: "Finance Ayudhas",
+  description: "Finance Ayudhas: salary, freelance and business income, expenses, loans, money held for others, savings and investments.",
   robots: { index: false, follow: false },
 };
 

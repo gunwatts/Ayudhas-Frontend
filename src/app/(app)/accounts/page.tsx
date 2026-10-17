@@ -1,13 +1,13 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Archive, ArchiveRestore, Banknote, CreditCard, Landmark, MoreHorizontal, Pencil, PiggyBank, Plus, Trash2, Wallet } from "lucide-react";
+import { Archive, ArchiveRestore, Banknote, Briefcase, ChevronDown, CreditCard, Landmark, MoreHorizontal, Pencil, PiggyBank, Plus, Trash2, Wallet } from "lucide-react";
 import { useState } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 
 import { ConfirmAction, EmptyState, ErrorState, LoadingRows, Money, PageHeader } from "@/components/common";
-import { AmountInput, Field, SimpleSelect } from "@/components/fields";
+import { AmountInput, BusinessSelect, Field, SimpleSelect } from "@/components/fields";
 import { FormDialog, FormError } from "@/components/form-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -19,7 +19,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { api, applyFieldErrors, newIdempotencyKey } from "@/lib/api";
 import { today } from "@/lib/dates";
 import { addMoney, isValidAmount, normalizeAmount } from "@/lib/money";
-import { type Account, useAccounts, useFinanceMutation } from "@/lib/queries";
+import { AmountCell } from "@/components/transactions-list";
+import { formatDate } from "@/lib/dates";
+import { type Account, type Txn, useAccounts, useBusinesses, useFinanceMutation, useTransactions } from "@/lib/queries";
 
 const TYPES = [
   { value: "bank", label: "Bank account" },
@@ -46,6 +48,7 @@ const schema = z.object({
   notes: z.string().max(5000),
   opening_balance: z.string().refine((v) => !v.trim() || isValidAmount(v), "Enter a valid amount"),
   opening_date: z.string(),
+  business_id: z.string(),
 });
 type Values = z.infer<typeof schema>;
 
@@ -62,12 +65,14 @@ function AccountForm({ initial, onDone }: { initial?: Account; onDone: () => voi
       notes: initial?.notes ?? "",
       opening_balance: "",
       opening_date: today(),
+      business_id: initial?.business ? String(initial.business.id) : "",
     },
   });
+  const businesses = useBusinesses();
   const type = useWatch({ control: form.control, name: "type" });
   const save = useFinanceMutation(
     (v: Values) => {
-      const base = { name: v.name, type: v.type, institution: v.institution, allow_negative: v.allow_negative, notes: v.notes };
+      const base = { name: v.name, type: v.type, institution: v.institution, allow_negative: v.allow_negative, notes: v.notes, business_id: v.business_id ? Number(v.business_id) : null };
       if (initial) return api.patch(`/accounts/${initial.id}`, base);
       return api.post(
         "/accounts",
@@ -99,6 +104,13 @@ function AccountForm({ initial, onDone }: { initial?: Account; onDone: () => voi
         <Field label="Bank / provider" className="sm:col-span-2">
           {({ id }) => <Input id={id} placeholder="Optional" {...form.register("institution")} />}
         </Field>
+        {!!businesses.data?.length && (
+          <Field label="Belongs to" className="sm:col-span-2" hint="A business's own account: its balance counts as business money, not personal money.">
+            {({ id, describedBy }) => (
+              <Controller control={form.control} name="business_id" render={({ field }) => <BusinessSelect id={id} describedBy={describedBy} value={field.value} onChange={field.onChange} />} />
+            )}
+          </Field>
+        )}
         {!initial && (
           <>
             <Field label="Current balance" error={e.opening_balance?.message} hint="Recorded as an opening balance, not as income.">
@@ -134,14 +146,74 @@ function AccountForm({ initial, onDone }: { initial?: Account; onDone: () => voi
   );
 }
 
+const PAGE = 10;
+
+function txnTitle(t: Txn) {
+  return t.description || t.merchant || t.category?.name || t.counterparty?.name || t.kind_label;
+}
+
+/** The account's transactions, newest first, loaded only when its card is opened, PAGE at a time. */
+function AccountHistory({ account }: { account: Account }) {
+  const [pages, setPages] = useState(1);
+  // One growing request (the API allows up to 200 rows per page); beyond that, the Transactions page has paging.
+  const size = Math.min(PAGE * pages, 200);
+  const q = useTransactions({ account_id: account.id, sort: "-date", page: 1, page_size: size });
+  if (q.error && !q.data) return <ErrorState error={q.error} onRetry={() => q.refetch()} className="py-6" />;
+  if (!q.data) return <LoadingRows rows={3} />;
+  if (!q.data.items.length) return <p className="py-4 text-center text-sm text-muted-foreground">No transactions in this account yet.</p>;
+  const more = q.data.total - q.data.items.length;
+  return (
+    <div className="grid gap-2">
+      <ul className="divide-y rounded-lg border bg-background/40" aria-label={`Transactions in ${account.name}`}>
+        {q.data.items.map((t) => {
+          const incomingTransfer = t.kind === "transfer" && t.to_account?.id === account.id;
+          return (
+            <li key={t.id} className="flex items-center gap-3 px-3 py-2">
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm">{txnTitle(t)}</p>
+                <p className="truncate text-xs text-muted-foreground">
+                  {formatDate(t.date)} · {t.kind === "transfer" ? (incomingTransfer ? `Transfer from ${t.account?.name ?? "?"}` : `Transfer to ${t.to_account?.name ?? "?"}`) : t.kind_label}
+                  {t.reversed_by_id ? " · undone" : ""}
+                </p>
+              </div>
+              {t.kind === "transfer" ? (
+                <span className={incomingTransfer ? "num text-sm font-medium whitespace-nowrap text-positive" : "num text-sm font-medium whitespace-nowrap"}>
+                  {incomingTransfer ? "+" : "−"}
+                  <Money value={t.amount} />
+                </span>
+              ) : (
+                <AmountCell t={t} />
+              )}
+            </li>
+          );
+        })}
+      </ul>
+      <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+        <span aria-live="polite">
+          Showing {q.data.items.length} of {q.data.total}
+        </span>
+        {more > 0 && size >= 200 && <span>Use the Transactions page filters to see older entries.</span>}
+        {more > 0 && size < 200 && (
+          <Button variant="outline" size="sm" disabled={q.isFetching} onClick={() => setPages((p) => p + 1)}>
+            {q.isFetching ? "Loading…" : `Show ${Math.min(PAGE, more)} more`}
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function AccountCard({ a, onEdit }: { a: Account; onEdit: () => void }) {
   const [confirm, setConfirm] = useState(false);
+  const [open, setOpen] = useState(false);
+  const historyId = `account-${a.id}-history`;
   const toggle = useFinanceMutation(() => api.patch(`/accounts/${a.id}`, { is_archived: !a.is_archived }), { success: a.is_archived ? "Account restored" : "Account archived" });
   const del = useFinanceMutation(() => api.delete(`/accounts/${a.id}`), { success: "Account deleted" });
   const Icon = ICONS[a.type] ?? Wallet;
   return (
     <Card className={a.is_archived ? "opacity-60" : undefined}>
-      <CardContent className="flex items-start gap-3">
+      <CardContent className="grid gap-3">
+      <div className="flex items-start gap-3">
         <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-muted">
           <Icon className="size-4 text-muted-foreground" />
         </span>
@@ -149,6 +221,11 @@ function AccountCard({ a, onEdit }: { a: Account; onEdit: () => void }) {
           <div className="flex items-center gap-2">
             <p className="truncate font-medium">{a.name}</p>
             {a.is_archived && <Badge variant="secondary">Archived</Badge>}
+            {a.business && (
+              <Badge variant="outline" className="gap-1 font-normal">
+                <Briefcase className="size-3" aria-hidden /> {a.business.name}
+              </Badge>
+            )}
           </div>
           <p className="truncate text-xs text-muted-foreground">{[TYPES.find((t) => t.value === a.type)?.label, a.institution].filter(Boolean).join(" · ")}</p>
           <p className="mt-2 text-xl font-semibold tracking-tight">
@@ -180,6 +257,22 @@ function AccountCard({ a, onEdit }: { a: Account; onEdit: () => void }) {
           description="Only accounts without any transactions can be deleted. Archive it instead to keep its history."
           onConfirm={() => del.mutateAsync(undefined)}
         />
+      </div>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        aria-controls={historyId}
+        className="flex items-center gap-1.5 justify-self-start rounded-md text-xs font-medium text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+      >
+        <ChevronDown className={`size-4 transition-transform ${open ? "rotate-180" : ""}`} aria-hidden />
+        {open ? "Hide transactions" : "Show transactions"}
+      </button>
+      {open && (
+        <div id={historyId}>
+          <AccountHistory account={a} />
+        </div>
+      )}
       </CardContent>
     </Card>
   );
