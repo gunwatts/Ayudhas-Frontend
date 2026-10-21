@@ -1263,6 +1263,48 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/transfer/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Export Finance
+         * @description Every finance record of the signed-in user in the Ayudhas Pro app's backup format (finance tables only).
+         *     A POST because it gives records that were never exported a stable id.
+         */
+        post: operations["export_finance_api_v1_transfer_export_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/transfer/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Import Finance
+         * @description Merges a backup made by Finance Ayudhas or the Ayudhas Pro app. Records already here are kept, so importing the
+         *     same file twice, or moving data back and forth, never duplicates anything. All or nothing.
+         */
+        post: operations["import_finance_api_v1_transfer_import_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/invite-codes": {
         parameters: {
             query?: never;
@@ -3285,6 +3327,42 @@ export interface components {
             payment_method?: ("cash" | "upi" | "debit_card" | "credit_card" | "net_banking" | "cheque" | "other" | "") | null;
             /** Notes */
             notes?: string | null;
+        };
+        /** TransferImportOut */
+        TransferImportOut: {
+            /** Dry Run */
+            dry_run: boolean;
+            /** Tables */
+            tables: {
+                [key: string]: components["schemas"]["TransferTableOut"];
+            };
+            /** Added */
+            added: number;
+            /** Matched */
+            matched: number;
+            /** Skipped */
+            skipped: number;
+            /** Notes */
+            notes: string[];
+        };
+        /** TransferTableOut */
+        TransferTableOut: {
+            /** Label */
+            label: string;
+            /** Incoming */
+            incoming: number;
+            /** Added */
+            added: number;
+            /**
+             * Matched
+             * @description Already here (same record, or same name): kept as it is
+             */
+            matched: number;
+            /**
+             * Skipped
+             * @description Not imported: the same entry recorded under another copy, or not applicable
+             */
+            skipped: number;
         };
         /** TrendPoint */
         TrendPoint: {
@@ -6760,6 +6838,66 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TransactionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    export_finance_api_v1_transfer_export_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    import_finance_api_v1_transfer_import_post: {
+        parameters: {
+            query?: {
+                /** @description Only report what would be added; change nothing */
+                dry_run?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    [key: string]: unknown;
+                };
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TransferImportOut"];
                 };
             };
             /** @description Validation Error */

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
+import { BackupTransferCard } from "@/components/backup-transfer";
 import { PageHeader } from "@/components/common";
 import { Field } from "@/components/fields";
 import { FormError } from "@/components/form-dialog";
@@ -170,6 +171,9 @@ export default function SettingsPage() {
           <PasswordCard />
         </div>
         <GoogleCard />
+        <div id="backup" className="scroll-mt-20">
+          <BackupTransferCard />
+        </div>
         <Card>
           <CardHeader>
             <CardTitle className="text-base">About</CardTitle>

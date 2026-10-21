@@ -5464,6 +5464,88 @@
     }
    }
   },
+  "/api/v1/transfer/export": {
+   "post": {
+    "tags": [
+     "backup & transfer"
+    ],
+    "summary": "Export Finance",
+    "description": "Every finance record of the signed-in user in the Ayudhas Pro app's backup format (finance tables only).\nA POST because it gives records that were never exported a stable id.",
+    "operationId": "export_finance_api_v1_transfer_export_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "type": "object",
+         "title": "Response Export Finance Api V1 Transfer Export Post"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/transfer/import": {
+   "post": {
+    "tags": [
+     "backup & transfer"
+    ],
+    "summary": "Import Finance",
+    "description": "Merges a backup made by Finance Ayudhas or the Ayudhas Pro app. Records already here are kept, so importing the\nsame file twice, or moving data back and forth, never duplicates anything. All or nothing.",
+    "operationId": "import_finance_api_v1_transfer_import_post",
+    "parameters": [
+     {
+      "name": "dry_run",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "boolean",
+       "description": "Only report what would be added; change nothing",
+       "default": false,
+       "title": "Dry Run"
+      },
+      "description": "Only report what would be added; change nothing"
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object",
+        "additionalProperties": true,
+        "title": "Payload"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/TransferImportOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/api/v1/admin/invite-codes": {
    "get": {
     "tags": [
@@ -12181,6 +12263,85 @@
      "version"
     ],
     "title": "TransactionPatch"
+   },
+   "TransferImportOut": {
+    "properties": {
+     "dry_run": {
+      "type": "boolean",
+      "title": "Dry Run"
+     },
+     "tables": {
+      "additionalProperties": {
+       "$ref": "#/components/schemas/TransferTableOut"
+      },
+      "type": "object",
+      "title": "Tables"
+     },
+     "added": {
+      "type": "integer",
+      "title": "Added"
+     },
+     "matched": {
+      "type": "integer",
+      "title": "Matched"
+     },
+     "skipped": {
+      "type": "integer",
+      "title": "Skipped"
+     },
+     "notes": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Notes"
+     }
+    },
+    "type": "object",
+    "required": [
+     "dry_run",
+     "tables",
+     "added",
+     "matched",
+     "skipped",
+     "notes"
+    ],
+    "title": "TransferImportOut"
+   },
+   "TransferTableOut": {
+    "properties": {
+     "label": {
+      "type": "string",
+      "title": "Label"
+     },
+     "incoming": {
+      "type": "integer",
+      "title": "Incoming"
+     },
+     "added": {
+      "type": "integer",
+      "title": "Added"
+     },
+     "matched": {
+      "type": "integer",
+      "title": "Matched",
+      "description": "Already here (same record, or same name): kept as it is"
+     },
+     "skipped": {
+      "type": "integer",
+      "title": "Skipped",
+      "description": "Not imported: the same entry recorded under another copy, or not applicable"
+     }
+    },
+    "type": "object",
+    "required": [
+     "label",
+     "incoming",
+     "added",
+     "matched",
+     "skipped"
+    ],
+    "title": "TransferTableOut"
    },
    "TrendPoint": {
     "properties": {
