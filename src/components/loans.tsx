@@ -37,8 +37,8 @@ export const LOAN_TYPES = [
 
 export const METHODS = [
   { value: "none", label: "No interest" },
-  { value: "reducing_balance", label: "Reducing balance (EMI)" },
-  { value: "flat", label: "Flat rate" },
+  { value: "reducing_balance", label: "Reducing balance (EMI) — bank loans" },
+  { value: "flat", label: "Flat rate — interest on the full amount" },
   { value: "simple_bullet", label: "Simple interest, paid at the end" },
 ] as const;
 
@@ -65,6 +65,7 @@ const loanSchema = z
     emi_override: optionalAmount,
     expected_end_date: z.string(),
     account_id: z.string(),
+    installments_paid: z.string().refine((v) => !v.trim() || (/^\d+$/.test(v) && Number(v) <= 600), "0 to 600 installments"),
     notes: z.string().max(5000),
   })
   .superRefine((v, ctx) => {
@@ -76,20 +77,28 @@ const loanSchema = z
       ctx.addIssue({ code: "custom", path: ["tenure_months"], message: "Enter the tenure" });
     if (v.frequency === "quarterly" && v.tenure_months && Number(v.tenure_months) % 3 !== 0)
       ctx.addIssue({ code: "custom", path: ["tenure_months"], message: "Quarterly loans need a multiple of 3 months" });
+    const periods = Number(v.tenure_months) / (v.frequency === "quarterly" ? 3 : 1);
+    if (Number(v.installments_paid) && periods && Number(v.installments_paid) > periods)
+      ctx.addIssue({ code: "custom", path: ["installments_paid"], message: `The loan has only ${periods} installments` });
   });
 type LoanValues = z.infer<typeof loanSchema>;
 
 /** Display-only EMI estimate; the server computes the authoritative schedule. */
-function emiPreview(v: LoanValues): string | null {
-  if (v.interest_method !== "reducing_balance" || !isValidAmount(v.principal) || !v.tenure_months) return null;
+export function emiPreview(v: Pick<LoanValues, "interest_method" | "principal" | "tenure_months" | "frequency" | "interest_rate">, method = v.interest_method): number | null {
+  if ((method !== "reducing_balance" && method !== "flat") || !isValidAmount(v.principal) || !v.tenure_months) return null;
   const step = v.frequency === "quarterly" ? 3 : 1;
   const n = Number(v.tenure_months) / step;
-  const r = (Number(v.interest_rate) / 100 / 12) * step;
   if (!n || !Number.isInteger(n)) return null;
   const p = toNumber(normalizeAmount(v.principal));
-  const emi = r === 0 ? p / n : (p * r * (1 + r) ** n) / ((1 + r) ** n - 1);
-  return formatMoney(emi);
+  const annual = Number(v.interest_rate) / 100;
+  // Flat: interest on the full principal for the whole tenure, spread evenly.
+  if (method === "flat") return (p + (p * annual * Number(v.tenure_months)) / 12) / n;
+  const r = (annual / 12) * step;
+  return r === 0 ? p / n : (p * r * (1 + r) ** n) / ((1 + r) ** n - 1);
 }
+
+const hasSchedule = (v: Pick<LoanValues, "interest_method" | "frequency" | "tenure_months">) =>
+  v.interest_method !== "simple_bullet" && v.frequency !== "none" && !!v.tenure_months?.trim();
 
 export function LoanForm({ direction, initial, onDone }: { direction: Direction; initial?: LoanDetail; onDone: (loan: LoanDetail) => void }) {
   const [key] = useState(newIdempotencyKey);
@@ -111,11 +120,13 @@ export function LoanForm({ direction, initial, onDone }: { direction: Direction;
       emi_override: initial?.emi_override ?? "",
       expected_end_date: initial?.expected_end_date ?? "",
       account_id: "",
+      installments_paid: "",
       notes: initial?.notes ?? "",
     },
   });
   const v = useWatch({ control: form.control }) as LoanValues;
   const preview = emiPreview(v);
+  const reducingPreview = v.interest_method === "flat" && Number(v.interest_rate) > 0 ? emiPreview(v, "reducing_balance") : null;
   // Money lent leaves one of your accounts, so the available balance goes down by it.
   const setAccount = useCallback((id: string) => form.setValue("account_id", id), [form]);
   const { hasAccounts } = useDefaultAccount(v.account_id ?? "", setAccount, isGiven && !initial);
@@ -139,7 +150,13 @@ export function LoanForm({ direction, initial, onDone }: { direction: Direction;
       if (initial) return api.patch<LoanDetail>(`/loans/${initial.id}`, body);
       return api.post<LoanDetail>(
         "/loans",
-        { ...body, direction, counterparty_name: values.counterparty_name.trim(), account_id: values.account_id ? Number(values.account_id) : null },
+        {
+          ...body,
+          direction,
+          counterparty_name: values.counterparty_name.trim(),
+          account_id: values.account_id ? Number(values.account_id) : null,
+          installments_paid: hasSchedule(values) && values.installments_paid.trim() ? Number(values.installments_paid) : 0,
+        },
         key,
       );
     },
@@ -210,6 +227,15 @@ export function LoanForm({ direction, initial, onDone }: { direction: Direction;
             {({ id, invalid, describedBy }) => <AmountInput id={id} aria-invalid={invalid} aria-describedby={describedBy} {...form.register("emi_override")} />}
           </Field>
         )}
+        {!initial && hasSchedule(v) && (
+          <Field
+            label="Installments already paid"
+            error={e.installments_paid?.message}
+            hint="For a loan that is already running, e.g. 3 if you have paid 3 EMIs. They are recorded as paid on their due dates without changing any account balance."
+          >
+            {({ id, invalid, describedBy }) => <Input id={id} inputMode="numeric" aria-invalid={invalid} aria-describedby={describedBy} placeholder="0" {...form.register("installments_paid")} />}
+          </Field>
+        )}
         {(v.frequency === "none" || method === "simple_bullet") && (
           <Field label="Expected repayment date" hint="Optional">
             {({ id, describedBy }) => <Input id={id} type="date" aria-describedby={describedBy} {...form.register("expected_end_date")} />}
@@ -236,11 +262,23 @@ export function LoanForm({ direction, initial, onDone }: { direction: Direction;
           </Field>
         )}
       </div>
-      {preview && (
+      {preview !== null && (
         <p className="rounded-lg bg-muted px-3 py-2 text-sm">
-          Estimated EMI: <span className="num font-semibold">{preview}</span>
+          Estimated {method === "flat" ? "installment" : "EMI"}: <span className="num font-semibold">{formatMoney(preview)}</span>
           <span className="text-muted-foreground"> — your lender&apos;s figure may differ slightly because of rounding and day counts.</span>
         </p>
+      )}
+      {reducingPreview !== null && (
+        <div role="note" className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm">
+          <p>
+            Banks and NBFCs quote a <span className="font-medium">reducing-balance</span> rate: at {Number(v.interest_rate)}% that is an EMI of{" "}
+            <span className="num font-semibold">{formatMoney(reducingPreview)}</span>. A flat rate charges interest on the full amount for the whole tenure, so it costs much more. Choose
+            flat only if your agreement says &ldquo;flat rate&rdquo;.
+          </p>
+          <Button type="button" variant="outline" size="sm" className="mt-2" onClick={() => form.setValue("interest_method", "reducing_balance")}>
+            Use reducing balance
+          </Button>
+        </div>
       )}
       <Field label="Notes">{({ id }) => <Textarea id={id} rows={2} {...form.register("notes")} />}</Field>
       <FormError message={error} />

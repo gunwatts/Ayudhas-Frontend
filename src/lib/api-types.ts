@@ -712,6 +712,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/loans/{loan_id}/past-installments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Record Past Installments
+         * @description Mark installments 1..N as paid before tracking began (a loan that was already running). Idempotent.
+         */
+        post: operations["record_past_installments_api_v1_loans__loan_id__past_installments_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/loans/{loan_id}/disbursements": {
         parameters: {
             query?: never;
@@ -2489,6 +2509,12 @@ export interface components {
              * @description Account the money went into / out of
              */
             account_id?: number | null;
+            /**
+             * Installments Paid
+             * @description For a loan already running: installments paid before it was added. They are recorded as repayments on their due dates without touching any account.
+             * @default 0
+             */
+            installments_paid: number;
         };
         /** LoanOut */
         LoanOut: {
@@ -2671,6 +2697,14 @@ export interface components {
             current_password: string;
             /** New Password */
             new_password: string;
+        };
+        /** PastInstallmentsIn */
+        PastInstallmentsIn: {
+            /**
+             * Installments Paid
+             * @description Mark installments 1 to this number as paid
+             */
+            installments_paid: number;
         };
         /** PeriodComparison */
         PeriodComparison: {
@@ -5199,6 +5233,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TransactionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    record_past_installments_api_v1_loans__loan_id__past_installments_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                loan_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PastInstallmentsIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LoanDetailOut"];
                 };
             };
             /** @description Validation Error */

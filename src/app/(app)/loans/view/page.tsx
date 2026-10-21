@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowLeft, Loader2, MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, CheckCheck, Loader2, MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useState } from "react";
@@ -215,6 +215,50 @@ function DisbursementForm({ loan, onDone }: { loan: LoanDetail; onDone: () => vo
   );
 }
 
+/** For a loan that was already running when it was added: mark installments 1..N as paid before tracking began. */
+function PastInstallmentsForm({ loan, onDone }: { loan: LoanDetail; onDone: () => void }) {
+  const fallenDue = loan.schedule.filter((r) => r.due_date <= today()).length;
+  const [count, setCount] = useState(String(Math.max(fallenDue, loan.state.installments_covered)));
+  const [error, setError] = useState<string | null>(null);
+  const n = Number(count);
+  const valid = /^\d+$/.test(count) && n >= 1 && n <= loan.schedule.length;
+  const toRecord = valid ? loan.schedule.slice(0, n).filter((r) => r.status !== "paid") : [];
+  const save = useFinanceMutation(() => api.post<LoanDetail>(`/loans/${loan.id}/past-installments`, { installments_paid: n }), {
+    success: "Installments marked as paid",
+    silentError: true,
+  });
+  return (
+    <form
+      className="grid gap-4"
+      noValidate
+      onSubmit={async (e) => {
+        e.preventDefault();
+        if (!valid) return setError(`Enter a number from 1 to ${loan.schedule.length}`);
+        setError(null);
+        try {
+          await save.mutateAsync(undefined);
+          onDone();
+        } catch (err) {
+          setError(applyFieldErrors(err, () => {}, []));
+        }
+      }}
+    >
+      <Field label="Installments paid so far" hint={`${fallenDue} of ${loan.schedule.length} have fallen due by today.`}>
+        {({ id, describedBy }) => <Input id={id} autoFocus inputMode="numeric" aria-describedby={describedBy} value={count} onChange={(e) => setCount(e.target.value)} />}
+      </Field>
+      <p className="text-sm text-muted-foreground">
+        {toRecord.length
+          ? `Records ${toRecord.length} repayment${toRecord.length === 1 ? "" : "s"} of ${formatMoney(toRecord.reduce((t, r) => addMoney(t, r.amount), "0"))} on their due dates, split into principal and interest as scheduled. No account balance changes.`
+          : "These installments are already covered."}
+      </p>
+      <FormError message={error} />
+      <div className="flex justify-end">
+        <Button type="submit" disabled={save.isPending || !toRecord.length}>{save.isPending ? "Saving…" : "Mark as paid"}</Button>
+      </div>
+    </form>
+  );
+}
+
 const STATUS_STYLE: Record<string, { label: string; variant: "secondary" | "destructive" | "outline" | "default" }> = {
   paid: { label: "Paid", variant: "secondary" },
   partial: { label: "Part paid", variant: "outline" },
@@ -262,7 +306,7 @@ function SetAccountForm({ loan, txn, onDone }: { loan: LoanDetail; txn: Txn; onD
 function LoanDetailView({ id }: { id: number }) {
   const loan = useLoan(id);
   const router = useRouter();
-  const [dialog, setDialog] = useState<null | "repay" | "disburse" | "edit" | "delete">(null);
+  const [dialog, setDialog] = useState<null | "repay" | "disburse" | "edit" | "delete" | "past">(null);
   const [deleting, setDeleting] = useState<Txn | null>(null);
   const [accountFor, setAccountFor] = useState<Txn | null>(null);
   const [showAll, setShowAll] = useState(false);
@@ -309,6 +353,9 @@ function LoanDetailView({ id }: { id: number }) {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onSelect={() => setDialog("edit")}><Pencil /> Edit terms</DropdownMenuItem>
+                {l.status === "active" && l.schedule.length > 1 && (
+                  <DropdownMenuItem onSelect={() => setDialog("past")}><CheckCheck /> Mark installments already paid</DropdownMenuItem>
+                )}
                 <DropdownMenuItem onSelect={() => setDialog("disburse")}><Plus /> {isGiven ? "Lend more" : "Add top-up / extra disbursement"}</DropdownMenuItem>
                 {l.status === "active" ? (
                   <DropdownMenuItem onSelect={() => setStatus.mutate("written_off")}>Mark as written off</DropdownMenuItem>
@@ -341,6 +388,14 @@ function LoanDetailView({ id }: { id: number }) {
       {st.overdue_count > 0 && (
         <div role="alert" className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm">
           <span className="font-medium text-destructive">{st.overdue_count} installment{st.overdue_count === 1 ? "" : "s"} overdue</span> — {formatMoney(st.overdue_amount)} past due according to the schedule.
+          {l.schedule.length > 1 && (
+            <>
+              {" "}Paid them before adding this loan?{" "}
+              <Button variant="link" size="sm" className="h-auto p-0 align-baseline" onClick={() => setDialog("past")}>
+                Mark as already paid
+              </Button>
+            </>
+          )}
         </div>
       )}
 
@@ -445,6 +500,14 @@ function LoanDetailView({ id }: { id: number }) {
       </FormDialog>
       <FormDialog open={dialog === "repay"} onOpenChange={(o) => !o && setDialog(null)} title={isGiven ? "Record amount received" : "Record repayment"} description={l.name}>
         <RepaymentForm loan={l} onDone={() => setDialog(null)} />
+      </FormDialog>
+      <FormDialog
+        open={dialog === "past"}
+        onOpenChange={(o) => !o && setDialog(null)}
+        title="Mark installments already paid"
+        description="For a loan that was already running when you added it."
+      >
+        <PastInstallmentsForm loan={l} onDone={() => setDialog(null)} />
       </FormDialog>
       <FormDialog open={dialog === "disburse"} onOpenChange={(o) => !o && setDialog(null)} title={isGiven ? "Lend more" : "Additional disbursement"} description="Increases the outstanding principal.">
         <DisbursementForm loan={l} onDone={() => setDialog(null)} />

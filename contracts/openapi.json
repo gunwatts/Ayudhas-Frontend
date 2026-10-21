@@ -3129,6 +3129,59 @@
     }
    }
   },
+  "/api/v1/loans/{loan_id}/past-installments": {
+   "post": {
+    "tags": [
+     "loans"
+    ],
+    "summary": "Record Past Installments",
+    "description": "Mark installments 1..N as paid before tracking began (a loan that was already running). Idempotent.",
+    "operationId": "record_past_installments_api_v1_loans__loan_id__past_installments_post",
+    "parameters": [
+     {
+      "name": "loan_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "Loan Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/PastInstallmentsIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/LoanDetailOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/api/v1/loans/{loan_id}/disbursements": {
    "post": {
     "tags": [
@@ -9356,6 +9409,14 @@
       ],
       "title": "Account Id",
       "description": "Account the money went into / out of"
+     },
+     "installments_paid": {
+      "type": "integer",
+      "maximum": 600.0,
+      "minimum": 0.0,
+      "title": "Installments Paid",
+      "description": "For a loan already running: installments paid before it was added. They are recorded as repayments on their due dates without touching any account.",
+      "default": 0
      }
     },
     "additionalProperties": false,
@@ -10012,6 +10073,23 @@
      "new_password"
     ],
     "title": "PasswordChangeIn"
+   },
+   "PastInstallmentsIn": {
+    "properties": {
+     "installments_paid": {
+      "type": "integer",
+      "maximum": 600.0,
+      "minimum": 1.0,
+      "title": "Installments Paid",
+      "description": "Mark installments 1 to this number as paid"
+     }
+    },
+    "additionalProperties": false,
+    "type": "object",
+    "required": [
+     "installments_paid"
+    ],
+    "title": "PastInstallmentsIn"
    },
    "PeriodComparison": {
     "properties": {
