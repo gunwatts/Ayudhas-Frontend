@@ -35,6 +35,8 @@ async function loadSlice(d: CategoryDrill, signal?: AbortSignal) {
     scope: "personal",
     start: d.start,
     end: d.end,
+    // Spending counts an event linked to a month in that month: list the same expenses the chart added up.
+    ...(d.kind === "expense" ? { by_spend_month: true } : {}),
     sort: "-date",
     page_size: PAGE_SIZE,
     ...(only === null ? { uncategorized: true } : only !== undefined ? { category_id: only } : {}),

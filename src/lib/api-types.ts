@@ -1507,6 +1507,21 @@ export interface components {
              * @default []
              */
             lines: components["schemas"]["BudgetLineIn"][];
+            /**
+             * Counts In Month
+             * @description Events only: count all of the event's expenses in this month (any date in it). Blank = each expense in the month of its own date
+             */
+            counts_in_month?: string | null;
+            /**
+             * Credit Account Id
+             * @description Monthly salary only: the account the salary was credited to. Records it as Salary income there, unless salary income is already recorded for the month
+             */
+            credit_account_id?: number | null;
+            /**
+             * Credit Date
+             * @description The date it was credited (in the month; default the 1st)
+             */
+            credit_date?: string | null;
         };
         /** BudgetLineIn */
         BudgetLineIn: {
@@ -1569,6 +1584,15 @@ export interface components {
             first_date?: string | null;
             /** Last Date */
             last_date?: string | null;
+            /** Counts In Month */
+            counts_in_month?: string | null;
+            /**
+             * Linked Events
+             * @default []
+             */
+            linked_events: components["schemas"]["LinkedEventOut"][];
+            /** Salary Transaction Id */
+            salary_transaction_id?: number | null;
             /**
              * Lines
              * @default []
@@ -1591,6 +1615,12 @@ export interface components {
             notes?: string | null;
             /** Lines */
             lines?: components["schemas"]["BudgetLineIn"][] | null;
+            /** Counts In Month */
+            counts_in_month?: string | null;
+            /** Credit Account Id */
+            credit_account_id?: number | null;
+            /** Credit Date */
+            credit_date?: string | null;
         };
         /** BudgetSnapshot */
         BudgetSnapshot: {
@@ -2447,6 +2477,15 @@ export interface components {
             expires_at?: string | null;
             /** Is Active */
             is_active?: boolean | null;
+        };
+        /** LinkedEventOut */
+        LinkedEventOut: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /** Spent */
+            spent: string;
         };
         /** LoanDetailOut */
         LoanDetailOut: {
@@ -4340,6 +4379,8 @@ export interface operations {
                 /** @description 0 = business-wide entries with no project */
                 project_id?: number | null;
                 sort?: "date" | "-date" | "amount" | "-amount";
+                /** @description Apply start/end by the month each expense counts in (an event linked to a month counts there), as spending totals do */
+                by_spend_month?: boolean;
                 page?: number;
                 page_size?: number;
             };

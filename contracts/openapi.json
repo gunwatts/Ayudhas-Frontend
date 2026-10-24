@@ -1574,6 +1574,18 @@
       }
      },
      {
+      "name": "by_spend_month",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "boolean",
+       "description": "Apply start/end by the month each expense counts in (an event linked to a month counts there), as spending totals do",
+       "default": false,
+       "title": "By Spend Month"
+      },
+      "description": "Apply start/end by the month each expense counts in (an event linked to a month counts there), as spending totals do"
+     },
+     {
       "name": "page",
       "in": "query",
       "required": false,
@@ -6183,6 +6195,44 @@
       "type": "array",
       "title": "Lines",
       "default": []
+     },
+     "counts_in_month": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Counts In Month",
+      "description": "Events only: count all of the event's expenses in this month (any date in it). Blank = each expense in the month of its own date"
+     },
+     "credit_account_id": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Credit Account Id",
+      "description": "Monthly salary only: the account the salary was credited to. Records it as Salary income there, unless salary income is already recorded for the month"
+     },
+     "credit_date": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Credit Date",
+      "description": "The date it was credited (in the month; default the 1st)"
      }
     },
     "additionalProperties": false,
@@ -6371,6 +6421,37 @@
       ],
       "title": "Last Date"
      },
+     "counts_in_month": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Counts In Month"
+     },
+     "linked_events": {
+      "items": {
+       "$ref": "#/components/schemas/LinkedEventOut"
+      },
+      "type": "array",
+      "title": "Linked Events",
+      "default": []
+     },
+     "salary_transaction_id": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Salary Transaction Id"
+     },
      "lines": {
       "items": {
        "$ref": "#/components/schemas/BudgetLineOut"
@@ -6488,6 +6569,41 @@
        }
       ],
       "title": "Lines"
+     },
+     "counts_in_month": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Counts In Month"
+     },
+     "credit_account_id": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Credit Account Id"
+     },
+     "credit_date": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Credit Date"
      }
     },
     "additionalProperties": false,
@@ -9175,6 +9291,29 @@
     "additionalProperties": false,
     "type": "object",
     "title": "InviteCodePatch"
+   },
+   "LinkedEventOut": {
+    "properties": {
+     "id": {
+      "type": "integer",
+      "title": "Id"
+     },
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "spent": {
+      "type": "string",
+      "title": "Spent"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "name",
+     "spent"
+    ],
+    "title": "LinkedEventOut"
    },
    "LoanDetailOut": {
     "properties": {

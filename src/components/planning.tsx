@@ -4,10 +4,10 @@
    three are "budgets" with a scope; the app itself never calls them budgets. */
 import { AlertTriangle, CalendarHeart, ChevronDown, MoreHorizontal, Pencil, Plus, Receipt, Sparkles, Target, Trash2, X } from "lucide-react";
 import { useMemo, useState } from "react";
-import { Controller, useFieldArray, useForm } from "react-hook-form";
+import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
 
 import { ConfirmAction, EmptyState, ErrorState, LoadingRows, Money, ProgressBar, utilizationTone } from "@/components/common";
-import { AmountInput, CategorySelect, Field } from "@/components/fields";
+import { AccountSelect, AmountInput, CategorySelect, Field } from "@/components/fields";
 import { FormDialog, FormError } from "@/components/form-dialog";
 import { AnimatedMoney } from "@/components/motion";
 import { TransactionForm } from "@/components/transaction-form";
@@ -34,7 +34,15 @@ type Values = {
   carry_forward: boolean;
   notes: string;
   lines: { category_id: string; amount: string }[];
+  /** Events: "YYYY-MM" all of the event's expenses count in, or "" for their own months. */
+  counts_in_month: string;
+  /** Monthly salary: the account it was credited to ("" = not recorded as income) and when. */
+  credit_account_id: string;
+  credit_date: string;
 };
+
+/** The default credit date for a salary month: today when it is that month, otherwise its 1st. */
+const creditDateFor = (month: string) => (today().startsWith(month) ? today() : `${month}-01`);
 
 const AMOUNT_LABEL: Record<Scope, string> = { monthly: "Salary for the month", event: "Planned amount", custom: "Planned amount" };
 const SOURCE: Record<string, string> = { income: "Recorded salary income", set: "Set for the month", none: "No salary" };
@@ -53,16 +61,36 @@ export function PlanForm({ scope, initial, onDone }: { scope: Scope; initial?: B
           carry_forward: initial.carry_forward,
           notes: initial.notes,
           lines: (detail.data?.lines ?? []).map((l) => ({ category_id: String(l.category.id), amount: l.amount })),
+          counts_in_month: initial.counts_in_month?.slice(0, 7) ?? "",
+          credit_account_id: "",
+          credit_date: creditDateFor(initial.period_start.slice(0, 7)),
         }
       : undefined,
-    defaultValues: { name: "", month: today().slice(0, 7), period_start: today(), period_end: "", amount: "", carry_forward: false, notes: "", lines: [] },
+    defaultValues: {
+      name: "",
+      month: today().slice(0, 7),
+      period_start: today(),
+      period_end: "",
+      amount: "",
+      carry_forward: false,
+      notes: "",
+      lines: [],
+      counts_in_month: "",
+      credit_account_id: "",
+      credit_date: today(),
+    },
     resetOptions: { keepDirtyValues: true },
   });
   const lines = useFieldArray({ control: form.control, name: "lines" });
+  const creditAccount = useWatch({ control: form.control, name: "credit_account_id" });
   const save = useFinanceMutation(
     (v: Values) => {
       const lineBody = v.lines.filter((l) => l.category_id && l.amount).map((l) => ({ category_id: Number(l.category_id), amount: normalizeAmount(l.amount) }));
       const amount = scope === "event" && !v.amount.trim() ? "0" : normalizeAmount(v.amount);
+      const extra = {
+        ...(scope === "event" ? { counts_in_month: v.counts_in_month ? `${v.counts_in_month}-01` : null } : {}),
+        ...(scope === "monthly" && v.credit_account_id ? { credit_account_id: Number(v.credit_account_id), credit_date: v.credit_date || null } : {}),
+      };
       if (initial)
         return api.patch(`/budgets/${initial.id}`, {
           name: v.name.trim() || initial.name,
@@ -71,6 +99,7 @@ export function PlanForm({ scope, initial, onDone }: { scope: Scope; initial?: B
           notes: v.notes,
           lines: lineBody,
           ...(scope !== "monthly" ? { period_start: v.period_start, period_end: v.period_end || v.period_start } : {}),
+          ...extra,
         });
       const [year, month] = v.month.split("-").map(Number);
       return api.post("/budgets", {
@@ -81,6 +110,7 @@ export function PlanForm({ scope, initial, onDone }: { scope: Scope; initial?: B
         notes: v.notes,
         lines: lineBody,
         ...(scope === "monthly" ? { year, month } : { period_start: v.period_start, period_end: v.period_end || null }),
+        ...extra,
       });
     },
     { success: initial ? "Saved" : scope === "monthly" ? "Salary saved" : scope === "event" ? "Event created" : "Spending plan created", silentError: true },
@@ -101,7 +131,7 @@ export function PlanForm({ scope, initial, onDone }: { scope: Scope; initial?: B
           await save.mutateAsync(v);
           onDone();
         } catch (err) {
-          setError(applyFieldErrors(err, form.setError as never, ["name", "month", "amount", "period_start", "period_end"]));
+          setError(applyFieldErrors(err, form.setError as never, ["name", "month", "amount", "period_start", "period_end", "counts_in_month", "credit_account_id", "credit_date"]));
         }
       })}
     >
@@ -136,6 +166,36 @@ export function PlanForm({ scope, initial, onDone }: { scope: Scope; initial?: B
           </>
         )}
       </div>
+      {scope === "event" && (
+        <Field
+          label="Count all its expenses in"
+          error={e.counts_in_month?.message}
+          hint="Optional. Pick a month to count every expense of this event in that month's spending, e.g. a trip paid partly at the start of the next month. Nothing is copied: each expense still counts once. Leave empty to count each in its own month."
+        >
+          {({ id, describedBy }) => <Input id={id} type="month" aria-describedby={describedBy} {...form.register("counts_in_month")} />}
+        </Field>
+      )}
+      {scope === "monthly" &&
+        (initial?.salary_source === "income" ? (
+          <p className="rounded-lg bg-muted px-3 py-2 text-sm text-muted-foreground">Salary income is already recorded for this month, so it is used as the salary.</p>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Controller
+              control={form.control}
+              name="credit_account_id"
+              render={({ field }) => (
+                <Field label="Credited to" error={e.credit_account_id?.message} hint="Optional. Records the salary as Salary income in this account, so its balance includes it.">
+                  {({ id, describedBy }) => <AccountSelect id={id} describedBy={describedBy} value={field.value} onChange={field.onChange} noneLabel="Don't record it as income" />}
+                </Field>
+              )}
+            />
+            {creditAccount && (
+              <Field label="Credited on" error={e.credit_date?.message} hint="A date in the salary's month.">
+                {({ id, invalid }) => <Input id={id} type="date" aria-invalid={invalid} {...form.register("credit_date")} />}
+              </Field>
+            )}
+          </div>
+        ))}
       {scope === "monthly" && (
         <Controller
           control={form.control}
@@ -249,6 +309,17 @@ export function SalaryMonthCard({ b, onEdit, index }: { b: Budget; onEdit: () =>
           </div>
         </dl>
         <ProgressBar value={util} tone={utilizationTone(util)} label={`${b.name}: share of salary spent`} />
+        {b.linked_events.length > 0 && (
+          <p className="text-xs text-muted-foreground">
+            Includes {b.linked_events.length === 1 ? "event" : "events"}:{" "}
+            {b.linked_events.map((ev, i) => (
+              <span key={ev.id}>
+                {i ? ", " : ""}
+                <span className="font-medium text-foreground">{ev.name}</span> {formatMoney(ev.spent)}
+              </span>
+            ))}
+          </p>
+        )}
         <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} className="flex items-center gap-1 justify-self-start text-xs text-muted-foreground hover:text-foreground">
           <ChevronDown className={`size-3.5 transition-transform ${open ? "rotate-180" : ""}`} /> Category limits
         </button>
@@ -364,6 +435,11 @@ export function EventCard({ b, onEdit, onAdd, index }: { b: Budget; onEdit: () =
         </div>
         {planned ? <ProgressBar value={util} tone={utilizationTone(util)} label={`${b.name}: share of planned amount used`} /> : <p className="text-xs text-muted-foreground">No planned amount. Edit the event to set one.</p>}
         {span && <p className="text-xs text-muted-foreground">Spending dates: {span}</p>}
+        {b.counts_in_month && (
+          <p className="text-xs text-muted-foreground">
+            All its expenses count in <span className="font-medium text-foreground">{formatMonth(b.counts_in_month.slice(0, 7))}</span>
+          </p>
+        )}
         <div className="flex flex-wrap items-center gap-2">
           <Button size="sm" onClick={onAdd}><Plus /> Add expense</Button>
           <Button size="sm" variant="outline" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
@@ -375,7 +451,7 @@ export function EventCard({ b, onEdit, onAdd, index }: { b: Budget; onEdit: () =
           open={confirm}
           onOpenChange={setConfirm}
           title={`Delete ${b.name}?`}
-          description="The event is removed. Its expenses are kept, and they still count in their months' spending."
+          description="The event is removed. Its expenses are kept, and they count in their own months' spending."
           onConfirm={() => del.mutateAsync(undefined)}
         />
       </CardContent>
