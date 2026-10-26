@@ -9,6 +9,7 @@ export type Txn = Schemas["TransactionOut"];
 export type Account = Schemas["AccountOut"];
 export type Category = Schemas["CategoryOut"];
 export type Person = Schemas["CounterpartyOut"];
+export type PersonGroup = Schemas["PersonGroupOut"];
 export type Loan = Schemas["LoanOut"];
 export type LoanDetail = Schemas["LoanDetailOut"];
 export type Custody = Schemas["CustodyOut"];
@@ -38,6 +39,8 @@ export type TxnFilters = {
   account_id?: number;
   category_id?: number;
   counterparty_id?: number;
+  /** Transactions of any member of this group of people. */
+  person_group_id?: number;
   event_id?: number;
   scope?: "personal" | "business";
   business_id?: number;
@@ -134,6 +137,9 @@ export const useCategories = (kind?: "expense" | "income", includeArchived = fal
 
 export const usePeople = () =>
   useQuery({ queryKey: ["people"], queryFn: ({ signal }) => api.get<Person[]>("/people", {}, signal) });
+
+export const usePersonGroups = () =>
+  useQuery({ queryKey: ["people", "groups"], queryFn: ({ signal }) => api.get<PersonGroup[]>("/people/groups", {}, signal) });
 
 export const useLoans = (direction: "taken" | "given") =>
   useQuery({

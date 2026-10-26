@@ -370,6 +370,45 @@ export interface paths {
         patch: operations["update_category_api_v1_categories__category_id__patch"];
         trace?: never;
     };
+    "/api/v1/people/groups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Groups */
+        get: operations["list_groups_api_v1_people_groups_get"];
+        put?: never;
+        /** Create Group */
+        post: operations["create_group_api_v1_people_groups_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/people/groups/{group_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Group
+         * @description Removes the group only; its people and their transactions stay.
+         */
+        delete: operations["delete_group_api_v1_people_groups__group_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Group */
+        patch: operations["update_group_api_v1_people_groups__group_id__patch"];
+        trace?: never;
+    };
     "/api/v1/people": {
         parameters: {
             query?: never;
@@ -1986,6 +2025,26 @@ export interface components {
              * @default 0.00
              */
             held_for: string;
+            /**
+             * Spent For
+             * @default 0.00
+             */
+            spent_for: string;
+            /**
+             * Received From
+             * @default 0.00
+             */
+            received_from: string;
+            /**
+             * For Them Balance
+             * @default 0.00
+             */
+            for_them_balance: string;
+            /**
+             * Group Ids
+             * @default []
+             */
+            group_ids: number[];
         };
         /** CounterpartyPatch */
         CounterpartyPatch: {
@@ -2799,6 +2858,50 @@ export interface components {
             previous_range: {
                 [key: string]: string;
             };
+        };
+        /** PersonGroupIn */
+        PersonGroupIn: {
+            /** Name */
+            name: string;
+            /**
+             * Notes
+             * @default
+             */
+            notes: string;
+            /** Member Ids */
+            member_ids?: number[];
+        };
+        /** PersonGroupOut */
+        PersonGroupOut: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /** Notes */
+            notes: string;
+            /** Members */
+            members: components["schemas"]["Ref"][];
+            /** Spent For */
+            spent_for: string;
+            /** Received From */
+            received_from: string;
+            /** For Them Balance */
+            for_them_balance: string;
+            /** Lent Outstanding */
+            lent_outstanding: string;
+            /** Borrowed Outstanding */
+            borrowed_outstanding: string;
+            /** Held For */
+            held_for: string;
+        };
+        /** PersonGroupPatch */
+        PersonGroupPatch: {
+            /** Name */
+            name?: string | null;
+            /** Notes */
+            notes?: string | null;
+            /** Member Ids */
+            member_ids?: number[] | null;
         };
         /** Positions */
         Positions: {
@@ -4242,6 +4345,123 @@ export interface operations {
             };
         };
     };
+    list_groups_api_v1_people_groups_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PersonGroupOut"][];
+                };
+            };
+        };
+    };
+    create_group_api_v1_people_groups_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PersonGroupIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PersonGroupOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_group_api_v1_people_groups__group_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                group_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_group_api_v1_people_groups__group_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                group_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PersonGroupPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PersonGroupOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_people_api_v1_people_get: {
         parameters: {
             query?: never;
@@ -4366,6 +4586,8 @@ export interface operations {
                 account_id?: number | null;
                 category_id?: number | null;
                 counterparty_id?: number | null;
+                /** @description Transactions of any member of this group */
+                person_group_id?: number | null;
                 event_id?: number | null;
                 loan_id?: number | null;
                 start?: string | null;

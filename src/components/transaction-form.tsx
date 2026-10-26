@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 
-import { AccountSelect, AmountInput, BusinessSelect, CategorySelect, EventInput, Field, NONE, ProjectSelect, SimpleSelect } from "@/components/fields";
+import { AccountSelect, AmountInput, BusinessSelect, CategorySelect, EventInput, Field, NONE, PersonSelect, ProjectSelect, SimpleSelect } from "@/components/fields";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -47,6 +47,7 @@ const schema = z
     account_id: z.string(),
     to_account_id: z.string(),
     category_id: z.string(),
+    counterparty_id: z.string(),
     event_name: z.string().max(150, "Keep the event name under 150 characters"),
     business_id: z.string(),
     project_id: z.string(),
@@ -67,7 +68,7 @@ const schema = z
   });
 
 type Values = z.infer<typeof schema>;
-const FIELDS = ["kind", "amount", "date", "time", "account_id", "to_account_id", "category_id", "event_name", "business_id", "project_id", "description", "merchant", "payment_method", "notes"] as const;
+const FIELDS = ["kind", "amount", "date", "time", "account_id", "to_account_id", "category_id", "counterparty_id", "event_name", "business_id", "project_id", "description", "merchant", "payment_method", "notes"] as const;
 
 function toBody(v: Values) {
   const id = (s: string) => (s ? Number(s) : null);
@@ -80,6 +81,8 @@ function toBody(v: Values) {
     account_id: id(v.account_id),
     to_account_id: v.kind === "transfer" ? id(v.to_account_id) : null,
     category_id: v.kind === "income" || isSpend ? id(v.category_id) : null,
+    // Who it was for (an expense) or from (income); shows in People and their groups.
+    counterparty_id: v.kind === "income" || isSpend ? id(v.counterparty_id) : null,
     // Matched to an existing event by name (any case) or created by the server; "" removes the link.
     event_name: isSpend ? v.event_name.trim() : "",
     // Business money stays out of personal totals; only income, expenses and refunds can belong to a business.
@@ -122,6 +125,7 @@ export function TransactionForm({
       account_id: initial?.account ? String(initial.account.id) : "",
       to_account_id: initial?.to_account ? String(initial.to_account.id) : "",
       category_id: initial?.category ? String(initial.category.id) : "",
+      counterparty_id: initial?.counterparty ? String(initial.counterparty.id) : "",
       event_name: initial?.event?.name ?? defaultEventName,
       business_id: initial ? (initial.business ? String(initial.business.id) : "") : defaultBusinessId ? String(defaultBusinessId) : "",
       project_id: initial ? (initial.project ? String(initial.project.id) : "") : defaultProjectId ? String(defaultProjectId) : "",
@@ -259,6 +263,22 @@ export function TransactionForm({
           </Field>
         ) : (
           <div />
+        )}
+
+        {(kind === "income" || isSpend) && (
+          <Field
+            label={kind === "income" ? "From person" : "For person"}
+            hint={kind === "income" ? "Optional: who gave this money (e.g. dad paying for your brother's things)." : "Optional: who this was for (e.g. things bought for your brother)."}
+            error={formState.errors.counterparty_id?.message}
+          >
+            {({ id, describedBy, invalid }) => (
+              <Controller
+                control={control}
+                name="counterparty_id"
+                render={({ field }) => <PersonSelect id={id} value={field.value} onChange={field.onChange} invalid={invalid} describedBy={describedBy} />}
+              />
+            )}
+          </Field>
         )}
 
         {showBusiness && (

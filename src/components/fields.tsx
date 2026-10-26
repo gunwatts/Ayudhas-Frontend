@@ -192,6 +192,26 @@ export function SimpleSelect({
   );
 }
 
+/** One of the user's people, or nobody ("" = nobody). */
+export function PersonSelect(p: SelectProps) {
+  const { data = [] } = usePeople();
+  return (
+    <Select value={p.value || NONE} onValueChange={(v) => p.onChange(v === NONE ? "" : v)}>
+      <SelectTrigger id={p.id} aria-invalid={p.invalid} aria-describedby={p.describedBy} className="w-full">
+        <SelectValue placeholder="Nobody" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value={NONE}>Nobody</SelectItem>
+        {data.map((person) => (
+          <SelectItem key={person.id} value={String(person.id)}>
+            {person.name}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
 /** Personal money or one of the user's (non-archived) businesses. "" = personal. */
 export function BusinessSelect({ allowPersonal = true, ...p }: SelectProps & { allowPersonal?: boolean }) {
   const { data = [] } = useBusinesses();

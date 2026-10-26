@@ -1148,6 +1148,156 @@
     }
    }
   },
+  "/api/v1/people/groups": {
+   "get": {
+    "tags": [
+     "people"
+    ],
+    "summary": "List Groups",
+    "operationId": "list_groups_api_v1_people_groups_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/PersonGroupOut"
+         },
+         "type": "array",
+         "title": "Response List Groups Api V1 People Groups Get"
+        }
+       }
+      }
+     }
+    }
+   },
+   "post": {
+    "tags": [
+     "people"
+    ],
+    "summary": "Create Group",
+    "operationId": "create_group_api_v1_people_groups_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/PersonGroupIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PersonGroupOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/people/groups/{group_id}": {
+   "patch": {
+    "tags": [
+     "people"
+    ],
+    "summary": "Update Group",
+    "operationId": "update_group_api_v1_people_groups__group_id__patch",
+    "parameters": [
+     {
+      "name": "group_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "Group Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/PersonGroupPatch"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PersonGroupOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "delete": {
+    "tags": [
+     "people"
+    ],
+    "summary": "Delete Group",
+    "description": "Removes the group only; its people and their transactions stay.",
+    "operationId": "delete_group_api_v1_people_groups__group_id__delete",
+    "parameters": [
+     {
+      "name": "group_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "Group Id"
+      }
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/api/v1/people": {
    "get": {
     "tags": [
@@ -1371,6 +1521,24 @@
        ],
        "title": "Counterparty Id"
       }
+     },
+     {
+      "name": "person_group_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Transactions of any member of this group",
+       "title": "Person Group Id"
+      },
+      "description": "Transactions of any member of this group"
      },
      {
       "name": "event_id",
@@ -7581,6 +7749,29 @@
       "type": "string",
       "title": "Held For",
       "default": "0.00"
+     },
+     "spent_for": {
+      "type": "string",
+      "title": "Spent For",
+      "default": "0.00"
+     },
+     "received_from": {
+      "type": "string",
+      "title": "Received From",
+      "default": "0.00"
+     },
+     "for_them_balance": {
+      "type": "string",
+      "title": "For Them Balance",
+      "default": "0.00"
+     },
+     "group_ids": {
+      "items": {
+       "type": "integer"
+      },
+      "type": "array",
+      "title": "Group Ids",
+      "default": []
      }
     },
     "type": "object",
@@ -10345,6 +10536,144 @@
      "previous_range"
     ],
     "title": "PeriodComparison"
+   },
+   "PersonGroupIn": {
+    "properties": {
+     "name": {
+      "type": "string",
+      "maxLength": 150,
+      "minLength": 1,
+      "title": "Name"
+     },
+     "notes": {
+      "type": "string",
+      "maxLength": 5000,
+      "title": "Notes",
+      "default": ""
+     },
+     "member_ids": {
+      "items": {
+       "type": "integer"
+      },
+      "type": "array",
+      "maxItems": 500,
+      "title": "Member Ids"
+     }
+    },
+    "additionalProperties": false,
+    "type": "object",
+    "required": [
+     "name"
+    ],
+    "title": "PersonGroupIn"
+   },
+   "PersonGroupOut": {
+    "properties": {
+     "id": {
+      "type": "integer",
+      "title": "Id"
+     },
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "notes": {
+      "type": "string",
+      "title": "Notes"
+     },
+     "members": {
+      "items": {
+       "$ref": "#/components/schemas/Ref"
+      },
+      "type": "array",
+      "title": "Members"
+     },
+     "spent_for": {
+      "type": "string",
+      "title": "Spent For"
+     },
+     "received_from": {
+      "type": "string",
+      "title": "Received From"
+     },
+     "for_them_balance": {
+      "type": "string",
+      "title": "For Them Balance"
+     },
+     "lent_outstanding": {
+      "type": "string",
+      "title": "Lent Outstanding"
+     },
+     "borrowed_outstanding": {
+      "type": "string",
+      "title": "Borrowed Outstanding"
+     },
+     "held_for": {
+      "type": "string",
+      "title": "Held For"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "name",
+     "notes",
+     "members",
+     "spent_for",
+     "received_from",
+     "for_them_balance",
+     "lent_outstanding",
+     "borrowed_outstanding",
+     "held_for"
+    ],
+    "title": "PersonGroupOut"
+   },
+   "PersonGroupPatch": {
+    "properties": {
+     "name": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 150,
+        "minLength": 1
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Name"
+     },
+     "notes": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 5000
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Notes"
+     },
+     "member_ids": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "integer"
+        },
+        "type": "array",
+        "maxItems": 500
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Member Ids"
+     }
+    },
+    "additionalProperties": false,
+    "type": "object",
+    "title": "PersonGroupPatch"
    },
    "Positions": {
     "properties": {
